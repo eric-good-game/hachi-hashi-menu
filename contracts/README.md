@@ -20,6 +20,9 @@ Inventory es dueño de la disponibilidad y será el productor real de
 `MenuItemAvailabilityChanged`. Antes de la etapa B hay que confirmar y, si aplica, ajustar
 el esquema:
 
+> Traspaso práctico para implementar Inventory sin leer toda la documentación de Menu:
+> [`docs/integracion-inventario.md`](../docs/integracion-inventario.md).
+
 - [ ] Nombre y tipo del exchange (`hachi.events`, topic) y routing key
       (`inventory.menu-item-availability-changed`).
 - [ ] Valores exactos de `source` (`inventory`), `type` y `version`.

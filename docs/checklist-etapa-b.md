@@ -25,6 +25,8 @@ Leyenda:
 
 ## 2. Inventory (disponibilidad)
 
+> Traspaso para el equipo de Inventory: [`integracion-inventario.md`](integracion-inventario.md).
+
 - [ ] 🔒 Confirmar exchange (`hachi.events`, topic), routing key
       (`inventory.menu-item-availability-changed`), `source`, `type` y `version`.
 - [ ] 🔒 Confirmar payload final (`menuItemId`, `available`) y campos adicionales.

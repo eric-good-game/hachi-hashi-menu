@@ -316,7 +316,8 @@ efímeros. Cubre:
   `realm_access` y 404 de las herramientas `dev` en modo integrado.
 
 No requiere Inventory ni Identity: usan los contratos provisionales descritos en
-[`contracts/README.md`](contracts/README.md).
+[`contracts/README.md`](contracts/README.md). Para implementar Inventory, el traspaso
+autocontenido está en [`docs/integracion-inventario.md`](docs/integracion-inventario.md).
 
 ### Verificación de humo
 
