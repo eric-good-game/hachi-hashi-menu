@@ -1,0 +1,8 @@
+export const CATEGORY_REPOSITORY = Symbol('CATEGORY_REPOSITORY');
+export const MENU_ITEM_REPOSITORY = Symbol('MENU_ITEM_REPOSITORY');
+export const ALLERGEN_REPOSITORY = Symbol('ALLERGEN_REPOSITORY');
+export const OUTBOX_REPOSITORY = Symbol('OUTBOX_REPOSITORY');
+export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
+export const CLOCK = Symbol('CLOCK');
+export const ID_GENERATOR = Symbol('ID_GENERATOR');
+export const CORRELATION_CONTEXT = Symbol('CORRELATION_CONTEXT');

@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id           String     @id @db.Uuid
+  name         String     @db.VarChar(80)
+  slug         String     @unique @db.VarChar(80)
+  displayOrder Int        @map("display_order")
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  items        MenuItem[]
+
+  @@map("category")
+}
+
+model MenuItem {
+  id                 String             @id @db.Uuid
+  categoryId         String             @map("category_id") @db.Uuid
+  name               String             @db.VarChar(120)
+  japaneseName       String?            @map("japanese_name") @db.VarChar(120)
+  description        String             @db.Text
+  priceCents         Int                @map("price_cents")
+  currency           String             @default("MXN") @db.Char(3)
+  photoPath          String?            @map("photo_path") @db.VarChar(255)
+  displayOrder       Int                @map("display_order")
+  active             Boolean            @default(false)
+  allergensReviewed  Boolean            @default(false) @map("allergens_reviewed")
+  available          Boolean            @default(true)
+  availableUpdatedAt DateTime?          @map("available_updated_at") @db.Timestamptz(6)
+  revision           Int                @default(1)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy          String?            @map("updated_by") @db.Uuid
+  category           Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  allergens          MenuItemAllergen[]
+
+  @@index([categoryId])
+  @@map("menu_item")
+}
+
+model Allergen {
+  code  String             @id @db.VarChar(30)
+  name  String             @db.VarChar(80)
+  items MenuItemAllergen[]
+
+  @@map("allergen")
+}
+
+model MenuItemAllergen {
+  menuItemId   String   @map("menu_item_id") @db.Uuid
+  allergenCode String   @map("allergen_code") @db.VarChar(30)
+  menuItem     MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  allergen     Allergen @relation(fields: [allergenCode], references: [code], onDelete: Restrict)
+
+  @@id([menuItemId, allergenCode])
+  @@map("menu_item_allergen")
+}
+
+model OutboxEvent {
+  seq           BigInt    @id @default(autoincrement())
+  id            String    @unique @db.Uuid
+  type          String    @db.VarChar(80)
+  routingKey    String    @map("routing_key") @db.VarChar(120)
+  aggregateId   String    @map("aggregate_id") @db.Uuid
+  correlationId String    @map("correlation_id") @db.Uuid
+  causationId   String?   @map("causation_id") @db.Uuid
+  version       Int
+  payload       Json
+  occurredAt    DateTime  @map("occurred_at") @db.Timestamptz(6)
+  publishedAt   DateTime? @map("published_at") @db.Timestamptz(6)
+  attempts      Int       @default(0)
+  lastError     String?   @map("last_error") @db.Text
+
+  @@map("outbox_event")
+}
+
+model ProcessedMessage {
+  messageId   String   @id @map("message_id") @db.Uuid
+  consumer    String   @db.VarChar(80)
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+
+  @@map("processed_message")
+}

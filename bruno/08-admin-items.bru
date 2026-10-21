@@ -1,0 +1,16 @@
+meta {
+  name: 08 Listar platillos admin
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/menu/admin/items?page=1&size=20
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Accept: application/json
+}

@@ -1,0 +1,31 @@
+meta {
+  name: 04 Crear platillo
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/menu/admin/items
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "categoryId": "{{categoryId}}",
+    "name": "Platillo {{suffix}}",
+    "japaneseName": "テスト",
+    "description": "Platillo del walking skeleton",
+    "priceCents": 12345,
+    "displayOrder": 1
+  }
+}
+
+script:post-response {
+  bru.setVar("itemId", res.body.id);
+}

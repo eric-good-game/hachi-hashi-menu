@@ -1,0 +1,9 @@
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  prisma: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@nestjs/cli@12.0.10'

@@ -1,0 +1,31 @@
+meta {
+  name: 03 Crear categoría
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/menu/admin/categories
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Walking skeleton {{suffix}}",
+    "displayOrder": 99
+  }
+}
+
+script:pre-request {
+  bru.setVar("suffix", Date.now().toString());
+}
+
+script:post-response {
+  bru.setVar("categoryId", res.body.id);
+}

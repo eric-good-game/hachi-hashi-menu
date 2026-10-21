@@ -1,0 +1,49 @@
+services:
+  menu-db:
+    image: postgres:16-alpine
+    container_name: hachi-menu-db
+    environment:
+      POSTGRES_USER: menu
+      POSTGRES_PASSWORD: menu
+      POSTGRES_DB: menu
+    ports:
+      - '5433:5432'
+    volumes:
+      - menu-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U menu -d menu']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  menu-api:
+    build: .
+    container_name: hachi-menu-api
+    depends_on:
+      menu-db:
+        condition: service_healthy
+    environment:
+      APP_MODE: standalone
+      AUTH_MODE: dev
+      NODE_ENV: production
+      PORT: 3000
+      PUBLIC_BASE_URL: http://localhost:3000
+      DATABASE_URL: postgresql://menu:menu@menu-db:5432/menu?schema=public
+      OUTBOX_PUBLISH_ENABLED: 'false'
+      CONSUMERS_ENABLED: 'false'
+      DEV_TOOLS_ENABLED: 'true'
+      SEED_ON_START: 'true'
+      PHOTO_STORAGE_PATH: /app/var/photos
+    ports:
+      - '3000:3000'
+    volumes:
+      - menu-photos:/app/var/photos
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/health >/dev/null 2>&1 || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  menu-db-data:
+  menu-photos:

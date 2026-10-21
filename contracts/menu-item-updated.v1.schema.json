@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hachi-hashi.local/contracts/menu-item-updated.v1.schema.json",
+  "title": "MenuItemUpdated v1",
+  "type": "object",
+  "required": [
+    "messageId",
+    "type",
+    "version",
+    "occurredAt",
+    "source",
+    "correlationId",
+    "causationId",
+    "payload"
+  ],
+  "properties": {
+    "messageId": { "type": "string", "format": "uuid" },
+    "type": { "const": "MenuItemUpdated" },
+    "version": { "const": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "source": { "const": "menu" },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "causationId": { "type": "null" },
+    "payload": {
+      "type": "object",
+      "required": [
+        "menuItemId",
+        "revision",
+        "name",
+        "priceCents",
+        "currency",
+        "categoryId",
+        "categoryName",
+        "active"
+      ],
+      "properties": {
+        "menuItemId": { "type": "string", "format": "uuid" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "priceCents": { "type": "integer", "minimum": 1 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "categoryId": { "type": "string", "format": "uuid" },
+        "categoryName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "active": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

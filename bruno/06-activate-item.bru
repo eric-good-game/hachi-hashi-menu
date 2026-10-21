@@ -1,0 +1,23 @@
+meta {
+  name: 06 Activar platillo
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/api/menu/admin/items/{{itemId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "active": true,
+    "revision": 1
+  }
+}
