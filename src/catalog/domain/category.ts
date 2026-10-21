@@ -98,4 +98,31 @@ export class Category {
   get updatedAt(): Date {
     return this.props.updatedAt;
   }
+
+  updateDetails(input: { name?: string; displayOrder?: number }, now: Date): Category {
+    const name = input.name !== undefined ? normalizeCategoryName(input.name) : this.props.name;
+    const displayOrder = input.displayOrder !== undefined ? input.displayOrder : this.props.displayOrder;
+
+    if (!Number.isInteger(displayOrder) || displayOrder < 0) {
+      throw new ValidationError('El orden de aparición debe ser un entero mayor o igual a 0');
+    }
+
+    if (name === this.props.name && displayOrder === this.props.displayOrder) {
+      return this;
+    }
+
+    return new Category({
+      ...this.props,
+      name,
+      displayOrder,
+      updatedAt: now,
+    });
+  }
+
+  withStatus(active: boolean, now: Date): Category {
+    if (active === this.props.active) {
+      return this;
+    }
+    return new Category({ ...this.props, active, updatedAt: now });
+  }
 }

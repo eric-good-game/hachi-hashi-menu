@@ -8,7 +8,8 @@ async function main(): Promise<void> {
     const result = await seedDatabase(prisma);
     console.log(
       `Semilla aplicada: ${result.allergens} alérgenos, ` +
-        `${result.categoriesCreated} categorías nuevas, ${result.categoriesExisting} ya existentes`,
+        `${result.categoriesCreated} categorías nuevas, ${result.categoriesExisting} ya existentes, ` +
+        `${result.itemsCreated} platillos nuevos, ${result.itemsExisting} ya existentes`,
     );
   } finally {
     await prisma.$disconnect();

@@ -1,0 +1,15 @@
+meta {
+  name: 11 Listar platillos públicos
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/menu/items?q=ramen&size=10
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}

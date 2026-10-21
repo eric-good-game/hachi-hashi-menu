@@ -21,7 +21,8 @@ export class SeedService implements OnApplicationBootstrap {
     const result = await seedDatabase(this.prisma);
     this.logger.log(
       `Semilla aplicada: ${result.allergens} alérgenos, ` +
-        `${result.categoriesCreated} categorías nuevas, ${result.categoriesExisting} ya existentes`,
+        `${result.categoriesCreated} categorías nuevas, ${result.categoriesExisting} ya existentes, ` +
+        `${result.itemsCreated} platillos nuevos, ${result.itemsExisting} ya existentes`,
     );
   }
 }

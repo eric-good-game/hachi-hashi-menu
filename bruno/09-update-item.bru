@@ -1,0 +1,28 @@
+meta {
+  name: 09 Editar platillo
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/api/menu/admin/items/{{itemId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "revision": 2,
+    "priceCents": 13900,
+    "description": "Platillo actualizado en el Hito 2"
+  }
+}
+
+script:post-response {
+  bru.setVar("revision", res.body.revision);
+}

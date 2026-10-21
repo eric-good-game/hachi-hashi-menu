@@ -1,0 +1,22 @@
+meta {
+  name: 10 Renombrar categoría
+  type: http
+  seq: 10
+}
+
+put {
+  url: {{baseUrl}}/api/menu/admin/categories/{{categoryId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Walking skeleton renombrada {{suffix}}"
+  }
+}

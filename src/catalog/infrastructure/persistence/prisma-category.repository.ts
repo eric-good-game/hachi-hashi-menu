@@ -33,6 +33,29 @@ export class PrismaCategoryRepository implements CategoryRepository {
     return row ? toCategory(row) : null;
   }
 
+  async update(category: Category): Promise<void> {
+    await this.db.category.update({
+      where: { id: category.id },
+      data: {
+        name: category.name,
+        displayOrder: category.displayOrder,
+        active: category.active,
+        updatedAt: category.updatedAt,
+      },
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    try {
+      await this.db.category.delete({ where: { id } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictError('No se puede borrar una categoría con platillos');
+      }
+      throw error;
+    }
+  }
+
   async findByNameInsensitive(name: string): Promise<Category | null> {
     const row = await this.db.category.findFirst({
       where: { name: { equals: name, mode: 'insensitive' } },

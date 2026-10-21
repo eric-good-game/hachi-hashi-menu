@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger, PayloadTooLargeException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { DomainError, type DomainErrorKind } from '../../catalog/domain/errors';
 import { currentCorrelationId } from './correlation';
@@ -63,6 +63,15 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     if (exception instanceof DomainError) {
       const status = STATUS_BY_KIND[exception.kind];
       return this.problem(status, exception.message, instance, correlationId);
+    }
+
+    if (exception instanceof PayloadTooLargeException) {
+      return this.problem(
+        HttpStatus.BAD_REQUEST,
+        'La foto supera el límite de 5 MB (RN-10)',
+        instance,
+        correlationId,
+      );
     }
 
     if (exception instanceof HttpException) {

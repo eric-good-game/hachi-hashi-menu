@@ -1,0 +1,16 @@
+meta {
+  name: 14 Quitar foto
+  type: http
+  seq: 14
+}
+
+delete {
+  url: {{baseUrl}}/api/menu/admin/items/{{itemId}}/photo
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Accept: application/json
+}

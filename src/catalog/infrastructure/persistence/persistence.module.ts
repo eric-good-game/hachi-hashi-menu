@@ -6,6 +6,7 @@ import {
   CORRELATION_CONTEXT,
   ID_GENERATOR,
   MENU_ITEM_REPOSITORY,
+  PHOTO_STORAGE,
   UNIT_OF_WORK,
 } from '../../catalog.tokens';
 import { PrismaAllergenRepository } from './prisma-allergen.repository';
@@ -16,6 +17,7 @@ import { PrismaUnitOfWork } from './prisma-unit-of-work';
 import { SystemClock } from '../system/system-clock';
 import { CryptoIdGenerator } from '../system/crypto-id-generator';
 import { AsyncLocalStorageCorrelationContext } from '../system/async-local-storage-correlation-context';
+import { LocalDiskPhotoStorage } from '../storage/local-disk-photo-storage';
 
 @Module({
   providers: [
@@ -39,6 +41,7 @@ import { AsyncLocalStorageCorrelationContext } from '../system/async-local-stora
     { provide: CLOCK, useClass: SystemClock },
     { provide: ID_GENERATOR, useClass: CryptoIdGenerator },
     { provide: CORRELATION_CONTEXT, useClass: AsyncLocalStorageCorrelationContext },
+    { provide: PHOTO_STORAGE, useClass: LocalDiskPhotoStorage },
   ],
   exports: [
     PrismaService,
@@ -49,6 +52,7 @@ import { AsyncLocalStorageCorrelationContext } from '../system/async-local-stora
     CLOCK,
     ID_GENERATOR,
     CORRELATION_CONTEXT,
+    PHOTO_STORAGE,
   ],
 })
 export class PersistenceModule {}

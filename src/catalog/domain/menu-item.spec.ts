@@ -112,4 +112,47 @@ describe('MenuItem (RN-01, RN-02, RN-03, RN-05, RN-07, RN-08)', () => {
     expect(() => draft().assertRevision(2)).toThrow(ConflictError);
     expect(() => draft().assertRevision(1)).not.toThrow();
   });
+
+  it('sube la revisión con cambios publicables y no con descripción u orden', () => {
+    const original = draft();
+
+    const priceChanged = original.updateDetails({ priceCents: 19900 }, NOW, 'actor');
+    expect(priceChanged.priceCents).toBe(19900);
+    expect(priceChanged.revision).toBe(2);
+
+    const descriptionChanged = priceChanged.updateDetails({ description: 'Otra descripción' }, NOW, 'actor');
+    expect(descriptionChanged.revision).toBe(2);
+
+    const orderChanged = descriptionChanged.updateDetails({ displayOrder: 99 }, NOW, 'actor');
+    expect(orderChanged.revision).toBe(2);
+
+    const nameChanged = orderChanged.updateDetails({ name: 'Nigiri de salmón premium' }, NOW, 'actor');
+    expect(nameChanged.revision).toBe(3);
+
+    const categoryChanged = nameChanged.updateDetails(
+      { categoryId: '00000000-0000-4000-8000-000000000010' },
+      NOW,
+      'actor',
+    );
+    expect(categoryChanged.revision).toBe(4);
+  });
+
+  it('devuelve la misma instancia cuando la edición no cambia nada', () => {
+    const original = draft();
+    expect(original.updateDetails({ name: original.name, displayOrder: original.displayOrder }, NOW, 'actor')).toBe(
+      original,
+    );
+  });
+
+  it('bumpRevision sube la revisión sin cambiar otros datos', () => {
+    const bumped = draft().bumpRevision(NOW, 'actor');
+    expect(bumped.revision).toBe(2);
+    expect(bumped.name).toBe('Nigiri de salmón');
+  });
+
+  it('cambiar la foto no sube la revisión', () => {
+    const withPhoto = draft().withPhoto('foto.png', NOW, 'actor');
+    expect(withPhoto.photoPath).toBe('foto.png');
+    expect(withPhoto.revision).toBe(1);
+  });
 });

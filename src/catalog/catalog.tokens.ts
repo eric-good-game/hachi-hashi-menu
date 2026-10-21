@@ -6,3 +6,4 @@ export const UNIT_OF_WORK = Symbol('UNIT_OF_WORK');
 export const CLOCK = Symbol('CLOCK');
 export const ID_GENERATOR = Symbol('ID_GENERATOR');
 export const CORRELATION_CONTEXT = Symbol('CORRELATION_CONTEXT');
+export const PHOTO_STORAGE = Symbol('PHOTO_STORAGE');

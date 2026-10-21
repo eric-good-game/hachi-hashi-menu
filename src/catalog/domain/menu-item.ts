@@ -180,6 +180,72 @@ export class MenuItem {
     return this.props.allergens;
   }
 
+  updateDetails(
+    input: {
+      name?: string;
+      japaneseName?: string | null;
+      description?: string;
+      priceCents?: number;
+      categoryId?: string;
+      displayOrder?: number;
+    },
+    now: Date,
+    actorId: string | null,
+  ): MenuItem {
+    const name = input.name !== undefined ? normalizeMenuItemName(input.name) : this.props.name;
+    const description = input.description !== undefined ? input.description.trim() : this.props.description;
+    if (description.length === 0) {
+      throw new ValidationError('La descripción es obligatoria');
+    }
+
+    const priceCents = input.priceCents !== undefined ? input.priceCents : this.props.priceCents;
+    assertPriceCents(priceCents);
+
+    const japaneseName =
+      input.japaneseName !== undefined ? input.japaneseName?.trim() || null : this.props.japaneseName;
+    if (japaneseName && japaneseName.length > 120) {
+      throw new ValidationError('El nombre en japonés admite hasta 120 caracteres');
+    }
+
+    const categoryId = input.categoryId !== undefined ? input.categoryId : this.props.categoryId;
+    const displayOrder = input.displayOrder !== undefined ? input.displayOrder : this.props.displayOrder;
+    if (!Number.isInteger(displayOrder) || displayOrder < 0) {
+      throw new ValidationError('El orden de aparición debe ser un entero mayor o igual a 0');
+    }
+
+    const publishableChange =
+      name !== this.props.name || priceCents !== this.props.priceCents || categoryId !== this.props.categoryId;
+    const anyChange =
+      publishableChange ||
+      description !== this.props.description ||
+      japaneseName !== this.props.japaneseName ||
+      displayOrder !== this.props.displayOrder;
+
+    if (!anyChange) {
+      return this;
+    }
+
+    return this.next({
+      name,
+      description,
+      priceCents,
+      japaneseName,
+      categoryId,
+      displayOrder,
+      revision: publishableChange ? this.props.revision + 1 : this.props.revision,
+      updatedAt: now,
+      updatedBy: actorId,
+    });
+  }
+
+  withPhoto(photoPath: string | null, now: Date, actorId: string | null): MenuItem {
+    return this.next({ photoPath, updatedAt: now, updatedBy: actorId });
+  }
+
+  bumpRevision(now: Date, actorId: string | null): MenuItem {
+    return this.next({ revision: this.props.revision + 1, updatedAt: now, updatedBy: actorId });
+  }
+
   assertRevision(revision: number): void {
     if (revision !== this.props.revision) {
       throw new ConflictError(

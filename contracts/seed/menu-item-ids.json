@@ -1,0 +1,186 @@
+{
+  "description": "IDs deterministas de los platillos semilla. Inventory puede reutilizarlos en la etapa A sin depender de Menu.",
+  "namespace": "f3f1a7d2-6e2b-4a6f-9f2a-1c3b5d7e9a01",
+  "items": [
+    {
+      "id": "bba1d2a2-c36e-5a26-8a28-c72066c20164",
+      "slug": "edamame",
+      "name": "Edamame",
+      "categorySlug": "entradas"
+    },
+    {
+      "id": "e3c823d0-0b01-55f7-9f4c-0e34015de7db",
+      "slug": "gyozas-de-cerdo",
+      "name": "Gyozas de cerdo",
+      "categorySlug": "entradas"
+    },
+    {
+      "id": "32988d57-bf9a-55f7-a2b3-f9be4a3f63b5",
+      "slug": "takoyaki",
+      "name": "Takoyaki",
+      "categorySlug": "entradas"
+    },
+    {
+      "id": "fea93ed6-70e1-5ec4-b393-7eaa8e86cbbc",
+      "slug": "agedashi-tofu",
+      "name": "Agedashi tofu",
+      "categorySlug": "entradas"
+    },
+    {
+      "id": "d11a203b-aede-5aa8-8e3b-772abb10a8c5",
+      "slug": "nigiri-salmon",
+      "name": "Nigiri de salmón",
+      "categorySlug": "nigiri"
+    },
+    {
+      "id": "9b001b9b-0021-5ad5-9122-e65374351f3b",
+      "slug": "nigiri-atun",
+      "name": "Nigiri de atún",
+      "categorySlug": "nigiri"
+    },
+    {
+      "id": "ae78ac30-28d1-5cd2-aed1-2e2030792f2d",
+      "slug": "nigiri-camaron",
+      "name": "Nigiri de camarón",
+      "categorySlug": "nigiri"
+    },
+    {
+      "id": "e754e8bd-d334-539b-bce7-c9444ee0a2aa",
+      "slug": "nigiri-anguila",
+      "name": "Nigiri de anguila",
+      "categorySlug": "nigiri"
+    },
+    {
+      "id": "b305b878-e4ff-5d40-bcd0-84e1793467d9",
+      "slug": "nigiri-pulpo",
+      "name": "Nigiri de pulpo",
+      "categorySlug": "nigiri"
+    },
+    {
+      "id": "54c7e02f-c716-584e-b5b2-852348a56dc4",
+      "slug": "nigiri-tamago",
+      "name": "Nigiri de huevo",
+      "categorySlug": "nigiri"
+    },
+    {
+      "id": "c3d8ffba-d286-502e-aa1c-78bcb052a510",
+      "slug": "sashimi-salmon",
+      "name": "Sashimi de salmón",
+      "categorySlug": "sashimi"
+    },
+    {
+      "id": "bc055f6f-c110-59d1-954d-1ec3e09947fa",
+      "slug": "sashimi-atun",
+      "name": "Sashimi de atún",
+      "categorySlug": "sashimi"
+    },
+    {
+      "id": "4a02f98c-b38a-5d4c-95c5-30abc9d11fbe",
+      "slug": "sashimi-pulpo",
+      "name": "Sashimi de pulpo",
+      "categorySlug": "sashimi"
+    },
+    {
+      "id": "f8f64e44-2668-57df-9462-acebfd609934",
+      "slug": "sashimi-vieiras",
+      "name": "Sashimi de vieiras",
+      "categorySlug": "sashimi"
+    },
+    {
+      "id": "2e2d050e-c39a-5694-a3b2-72912bf6a618",
+      "slug": "california-roll",
+      "name": "California roll",
+      "categorySlug": "rolls"
+    },
+    {
+      "id": "2408fd03-566b-5624-8a12-6772a3b322b1",
+      "slug": "spicy-tuna-roll",
+      "name": "Spicy tuna roll",
+      "categorySlug": "rolls"
+    },
+    {
+      "id": "b2476e46-3604-529a-a2de-e1959c508bd6",
+      "slug": "dragon-roll",
+      "name": "Dragon roll",
+      "categorySlug": "rolls"
+    },
+    {
+      "id": "d272b289-e2c5-564d-882f-5fb35936fb22",
+      "slug": "vegetarian-roll",
+      "name": "Vegetarian roll",
+      "categorySlug": "rolls"
+    },
+    {
+      "id": "1024c663-ed2b-5869-a6be-f0a1b3362267",
+      "slug": "tempura-roll",
+      "name": "Tempura roll",
+      "categorySlug": "rolls"
+    },
+    {
+      "id": "2d668355-98c6-5587-921a-7b6b9a7de65d",
+      "slug": "ramen-tonkotsu",
+      "name": "Ramen tonkotsu",
+      "categorySlug": "ramen"
+    },
+    {
+      "id": "49d2d543-2e3e-53d4-8a01-cf6cb79fc758",
+      "slug": "ramen-shoyu",
+      "name": "Ramen shoyu",
+      "categorySlug": "ramen"
+    },
+    {
+      "id": "d2866ba2-f7be-528f-a149-c8af97c08c5b",
+      "slug": "ramen-miso",
+      "name": "Ramen miso",
+      "categorySlug": "ramen"
+    },
+    {
+      "id": "64ab4d38-b9ed-5a47-8569-bb558fd3fae6",
+      "slug": "ramen-vegetariano",
+      "name": "Ramen vegetariano",
+      "categorySlug": "ramen"
+    },
+    {
+      "id": "52dc35e8-5b8e-55a2-b377-e295fd077146",
+      "slug": "mochi-matcha",
+      "name": "Mochi de matcha",
+      "categorySlug": "postres"
+    },
+    {
+      "id": "37a5ed84-6e00-5cf7-bef6-e11ff40da469",
+      "slug": "dorayaki",
+      "name": "Dorayaki",
+      "categorySlug": "postres"
+    },
+    {
+      "id": "46005745-eea0-5e3f-9b09-0f8d17299afa",
+      "slug": "helado-te-verde",
+      "name": "Helado de té verde",
+      "categorySlug": "postres"
+    },
+    {
+      "id": "25d284d9-537f-5dd6-af01-26a5c8767269",
+      "slug": "te-verde",
+      "name": "Té verde",
+      "categorySlug": "bebidas"
+    },
+    {
+      "id": "c4ee6e88-8d44-5210-9558-041ce072b463",
+      "slug": "agua-jamaica",
+      "name": "Agua de jamaica",
+      "categorySlug": "bebidas"
+    },
+    {
+      "id": "304ee418-230a-50a6-974c-0905e3111243",
+      "slug": "cerveza-japonesa",
+      "name": "Cerveza japonesa",
+      "categorySlug": "bebidas"
+    },
+    {
+      "id": "ecc8648c-b10d-5abe-8fb2-d3fedd5678fe",
+      "slug": "sake",
+      "name": "Sake",
+      "categorySlug": "bebidas"
+    }
+  ]
+}

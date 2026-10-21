@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 const NAMESPACE = 'f3f1a7d2-6e2b-4a6f-9f2a-1c3b5d7e9a01';
 
+export const SEED_NAMESPACE = NAMESPACE;
+
 /**
  * UUID v5 (SHA-1) para que los datos semilla tengan IDs reproducibles entre
  * entornos. Inventory reutiliza estos IDs en la etapa A.

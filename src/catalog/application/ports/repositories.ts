@@ -11,13 +11,31 @@ export interface AdminMenuItemView {
   categoryName: string;
 }
 
+export type PublicMenuItemView = AdminMenuItemView;
+
 export interface PublicMenuCategoryView {
   category: Category;
   items: MenuItem[];
 }
 
+export interface PublicItemsFilter {
+  categoryId?: string;
+  available?: boolean;
+  excludeAllergens: string[];
+  q?: string;
+  page: number;
+  size: number;
+}
+
+export interface PaginatedItems {
+  items: PublicMenuItemView[];
+  total: number;
+}
+
 export interface CategoryRepository {
   create(category: Category): Promise<void>;
+  update(category: Category): Promise<void>;
+  delete(id: string): Promise<void>;
   findById(id: string): Promise<Category | null>;
   findByNameInsensitive(name: string): Promise<Category | null>;
   listActive(): Promise<Category[]>;
@@ -27,11 +45,18 @@ export interface CategoryRepository {
 export interface MenuItemRepository {
   create(item: MenuItem): Promise<void>;
   findById(id: string): Promise<MenuItem | null>;
+  findPublicById(id: string): Promise<PublicMenuItemView | null>;
   existsByNameInCategory(categoryId: string, name: string, excludeId?: string): Promise<boolean>;
   update(item: MenuItem): Promise<void>;
+  updateDetails(item: MenuItem): Promise<void>;
+  updatePhoto(itemId: string, photoPath: string | null, actorId: string | null, now: Date): Promise<void>;
   replaceAllergens(itemId: string, codes: readonly string[], actorId: string | null, now: Date): Promise<void>;
+  listByCategoryId(categoryId: string): Promise<MenuItem[]>;
+  countByCategory(categoryId: string): Promise<number>;
+  countActiveByCategory(categoryId: string): Promise<number>;
   listAdmin(page: number, size: number): Promise<{ items: AdminMenuItemView[]; total: number }>;
   listPublicMenu(): Promise<PublicMenuCategoryView[]>;
+  listPublicItems(filter: PublicItemsFilter): Promise<PaginatedItems>;
 }
 
 export interface AllergenRepository {

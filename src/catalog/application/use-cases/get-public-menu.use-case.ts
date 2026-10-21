@@ -2,19 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import { MENU_ITEM_REPOSITORY } from '../../catalog.tokens';
 import type { MenuItemRepository } from '../ports/repositories';
 import type { AppEnv } from '../../../config/env.schema';
-
-export interface PublicMenuItemResponse {
-  id: string;
-  name: string;
-  japaneseName: string | null;
-  description: string;
-  priceCents: number;
-  currency: string;
-  category: { id: string; name: string };
-  allergens: string[];
-  photoUrl: string | null;
-  available: boolean;
-}
+import {
+  toPublicMenuItemResponse,
+  type PublicMenuItemResponse,
+} from '../views/public-menu-item.view';
 
 export interface PublicMenuCategoryResponse {
   id: string;
@@ -37,7 +28,6 @@ export class GetPublicMenuUseCase {
 
   async execute(): Promise<PublicMenuResponse> {
     const rows = await this.items.listPublicMenu();
-    const baseUrl = this.env.PUBLIC_BASE_URL.replace(/\/+$/, '');
 
     return {
       categories: rows.map(({ category, items }) => ({
@@ -45,18 +35,13 @@ export class GetPublicMenuUseCase {
         name: category.name,
         slug: category.slug,
         displayOrder: category.displayOrder,
-        items: items.map((item) => ({
-          id: item.id,
-          name: item.name,
-          japaneseName: item.japaneseName,
-          description: item.description,
-          priceCents: item.priceCents,
-          currency: item.currency,
-          category: { id: category.id, name: category.name },
-          allergens: [...item.allergens],
-          photoUrl: item.photoPath ? `${baseUrl}/api/menu/media/${encodeURIComponent(item.photoPath)}` : null,
-          available: item.available,
-        })),
+        items: items.map((item) =>
+          toPublicMenuItemResponse(
+            item,
+            { id: category.id, name: category.name },
+            this.env.PUBLIC_BASE_URL,
+          ),
+        ),
       })),
     };
   }

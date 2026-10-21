@@ -4,6 +4,9 @@ import { ConflictError } from '../../domain/errors';
 import type {
   AdminMenuItemView,
   MenuItemRepository,
+  PaginatedItems,
+  PublicItemsFilter,
+  PublicMenuItemView,
   PublicMenuCategoryView,
 } from '../../application/ports/repositories';
 import { toCategory, toMenuItem, type Db, type MenuItemWithCategoryRow } from './prisma.mappers';
@@ -50,6 +53,14 @@ export class PrismaMenuItemRepository implements MenuItemRepository {
     return row ? toMenuItem(row) : null;
   }
 
+  async findPublicById(id: string): Promise<PublicMenuItemView | null> {
+    const row = await this.db.menuItem.findFirst({
+      where: { id, active: true, category: { is: { active: true } } },
+      include: { allergens: true, category: true },
+    });
+    return row ? { item: toMenuItem(row), categoryName: row.category.name } : null;
+  }
+
   async existsByNameInCategory(categoryId: string, name: string, excludeId?: string): Promise<boolean> {
     const row = await this.db.menuItem.findFirst({
       where: {
@@ -72,6 +83,52 @@ export class PrismaMenuItemRepository implements MenuItemRepository {
         updatedAt: item.updatedAt,
       },
     });
+  }
+
+  async updateDetails(item: MenuItem): Promise<void> {
+    await this.db.menuItem.update({
+      where: { id: item.id },
+      data: {
+        categoryId: item.categoryId,
+        name: item.name,
+        japaneseName: item.japaneseName,
+        description: item.description,
+        priceCents: item.priceCents,
+        displayOrder: item.displayOrder,
+        revision: item.revision,
+        updatedBy: item.updatedBy,
+        updatedAt: item.updatedAt,
+      },
+    });
+  }
+
+  async updatePhoto(
+    itemId: string,
+    photoPath: string | null,
+    actorId: string | null,
+    now: Date,
+  ): Promise<void> {
+    await this.db.menuItem.update({
+      where: { id: itemId },
+      data: { photoPath, updatedBy: actorId, updatedAt: now },
+    });
+  }
+
+  async listByCategoryId(categoryId: string): Promise<MenuItem[]> {
+    const rows = await this.db.menuItem.findMany({
+      where: { categoryId },
+      include: { allergens: true },
+      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+    });
+    return rows.map(toMenuItem);
+  }
+
+  async countByCategory(categoryId: string): Promise<number> {
+    return this.db.menuItem.count({ where: { categoryId } });
+  }
+
+  async countActiveByCategory(categoryId: string): Promise<number> {
+    return this.db.menuItem.count({ where: { categoryId, active: true } });
   }
 
   async replaceAllergens(
@@ -130,5 +187,42 @@ export class PrismaMenuItemRepository implements MenuItemRepository {
       category: toCategory(row),
       items: row.items.map(toMenuItem),
     }));
+  }
+
+  async listPublicItems(filter: PublicItemsFilter): Promise<PaginatedItems> {
+    const where: Prisma.MenuItemWhereInput = {
+      active: true,
+      category: { is: { active: true } },
+      ...(filter.categoryId ? { categoryId: filter.categoryId } : {}),
+      ...(filter.available !== undefined ? { available: filter.available } : {}),
+      ...(filter.q
+        ? {
+            OR: [
+              { name: { contains: filter.q, mode: 'insensitive' } },
+              { description: { contains: filter.q, mode: 'insensitive' } },
+              { japaneseName: { contains: filter.q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(filter.excludeAllergens.length > 0
+        ? { allergens: { none: { allergenCode: { in: filter.excludeAllergens } } } }
+        : {}),
+    };
+
+    const [rows, total] = await Promise.all([
+      this.db.menuItem.findMany({
+        where,
+        include: { allergens: true, category: true },
+        orderBy: [{ category: { displayOrder: 'asc' } }, { displayOrder: 'asc' }, { name: 'asc' }],
+        skip: (filter.page - 1) * filter.size,
+        take: filter.size,
+      }),
+      this.db.menuItem.count({ where }),
+    ]);
+
+    return {
+      items: rows.map((row) => ({ item: toMenuItem(row), categoryName: row.category.name })),
+      total,
+    };
   }
 }
