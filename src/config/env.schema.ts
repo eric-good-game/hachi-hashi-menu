@@ -27,6 +27,9 @@ export const envSchema = z
     RABBITMQ_URL: z.string().optional(),
     OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
     OUTBOX_BATCH_SIZE: z.coerce.number().int().positive().default(50),
+    OUTBOX_RELAY_LOCK_ENABLED: booleanFromEnv.default(true),
+    OUTBOX_RELAY_LEASE_MS: z.coerce.number().int().positive().default(15000),
+    OUTBOX_RELAY_INSTANCE_ID: z.string().min(1).max(120).optional(),
     CONSUMER_MAX_RETRIES: z.coerce.number().int().min(0).default(3),
     RABBITMQ_RETRY_TTLS_MS: z
       .string()
@@ -57,6 +60,12 @@ export const envSchema = z
     }
     if (env.AUTH_MODE === 'jwt' && !env.JWT_PUBLIC_KEY && !env.JWT_PUBLIC_KEY_FILE) {
       fail('JWT_PUBLIC_KEY', 'AUTH_MODE=jwt exige JWT_PUBLIC_KEY o JWT_PUBLIC_KEY_FILE');
+    }
+    if (env.OUTBOX_RELAY_LOCK_ENABLED && env.OUTBOX_RELAY_LEASE_MS < env.OUTBOX_POLL_INTERVAL_MS) {
+      fail(
+        'OUTBOX_RELAY_LEASE_MS',
+        'OUTBOX_RELAY_LEASE_MS debe ser mayor o igual que OUTBOX_POLL_INTERVAL_MS',
+      );
     }
   });
 

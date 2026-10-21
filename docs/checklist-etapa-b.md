@@ -42,7 +42,9 @@ Leyenda:
 - [ ] 🔒 Confirmar topología y nombres definitivos (D-34): `hachi.events`, `hachi.dlx`,
       `hachi.retry`, `menu.inventory-events`, DLQ.
 - [ ] ⏳ Definir política de TTL de reintento para producción (`RABBITMQ_RETRY_TTLS_MS`).
-- [ ] ⏳ Decidir relay mono-instancia vs bloqueo/particionado (D-46) antes de escalar.
+- [x] ✅ Decidir relay mono-instancia vs bloqueo/particionado (D-46): resuelto con el lease
+      en base de datos (D-48). Con varias réplicas solo una publica a la vez; verificado en
+      `test/integration/hito4-relay-lock.test.ts`.
 - [ ] ⏳ Monitoreo y alerta de la DLQ; runbook de replay (hoy no existe herramienta).
 - [ ] ✅ Confirmar publicación con publisher confirms, orden por `seq` y `published_at`.
       Cubierto por la prueba de integración del relay.
@@ -93,5 +95,5 @@ Leyenda:
 1. CI verde en `main`.
 2. Contratos de Inventory e Identity confirmados y pruebas de contrato en verde.
 3. `APP_MODE=integrated` con JWT real y herramientas `dev` devolviendo 404.
-4. DLQ con monitoreo y runbook; decisión de relay mono-instancia tomada.
+4. DLQ con monitoreo y runbook; lease del relay multi-instancia implementado (D-48).
 5. Migraciones y backups operativos.

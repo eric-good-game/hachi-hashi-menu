@@ -7,6 +7,7 @@ import type {
 import type { ClockPort } from '../../catalog/application/ports/system';
 import type { EventEnvelope } from '../../events/contract-validator';
 import { ContractValidator } from '../../events/contract-validator';
+import type { RelayLockPort } from './ports/relay-lock';
 import { OutboxRelay } from './outbox-relay.service';
 
 const NOW = new Date('2026-10-20T18:42:10.000Z');
@@ -38,7 +39,12 @@ function outboxRow(seq: number, overrides: Partial<OutboxRecord> = {}): OutboxRe
   };
 }
 
-function buildRelay(rows: OutboxRecord[], publish: jest.Mock) {
+interface BuildOptions {
+  lockEnabled?: boolean;
+  acquire?: jest.Mock<Promise<boolean>, [string, string, number]>;
+}
+
+function buildRelay(rows: OutboxRecord[], publish: jest.Mock, options: BuildOptions = {}) {
   const outbox = {
     append: jest.fn(),
     listUnpublished: jest.fn().mockResolvedValue(rows),
@@ -47,14 +53,20 @@ function buildRelay(rows: OutboxRecord[], publish: jest.Mock) {
   } satisfies OutboxRepository;
   const bus: EventBusPort = { publish };
   const clock: ClockPort = { now: () => NOW };
+  const lock: RelayLockPort = {
+    acquire: options.acquire ?? jest.fn().mockResolvedValue(true),
+    release: jest.fn().mockResolvedValue(undefined),
+  };
   const env = {
     OUTBOX_PUBLISH_ENABLED: true,
     OUTBOX_BATCH_SIZE: 50,
     OUTBOX_POLL_INTERVAL_MS: 1000,
+    OUTBOX_RELAY_LOCK_ENABLED: options.lockEnabled ?? true,
+    OUTBOX_RELAY_LEASE_MS: 15_000,
   } as AppEnv;
-  const relay = new OutboxRelay(outbox, bus, clock, env, new ContractValidator());
+  const relay = new OutboxRelay(outbox, bus, clock, env, new ContractValidator(), lock);
 
-  return { relay, outbox };
+  return { relay, outbox, lock };
 }
 
 describe('OutboxRelay', () => {
@@ -105,5 +117,66 @@ describe('OutboxRelay', () => {
       1n,
       expect.stringContaining('no cumple el contrato'),
     );
+  });
+
+  it('no publica si otra instancia posee el lease', async () => {
+    const publish = jest.fn<Promise<void>, [string, EventEnvelope<object>]>().mockResolvedValue(undefined);
+    const acquire = jest.fn<Promise<boolean>, [string, string, number]>().mockResolvedValue(false);
+    const { relay, outbox } = buildRelay([outboxRow(1)], publish, { acquire });
+
+    await expect(relay.pollOnce()).resolves.toBe(0);
+
+    expect(acquire).toHaveBeenCalledWith('outbox-relay', expect.any(String), 15_000);
+    expect(outbox.listUnpublished).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('renueva el lease antes de cada evento y se detiene al perderlo', async () => {
+    const publish = jest.fn<Promise<void>, [string, EventEnvelope<object>]>().mockResolvedValue(undefined);
+    const acquire = jest
+      .fn<Promise<boolean>, [string, string, number]>()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    const { relay, outbox } = buildRelay([outboxRow(1), outboxRow(2), outboxRow(3)], publish, {
+      acquire,
+    });
+
+    await expect(relay.pollOnce()).resolves.toBe(2);
+
+    expect(publish).toHaveBeenCalledTimes(2);
+    expect(outbox.markPublished).toHaveBeenCalledTimes(2);
+    expect(acquire).toHaveBeenCalledTimes(4);
+  });
+
+  it('publica sin consultar el lease cuando el bloqueo está deshabilitado', async () => {
+    const publish = jest.fn<Promise<void>, [string, EventEnvelope<object>]>().mockResolvedValue(undefined);
+    const { relay, lock } = buildRelay([outboxRow(1)], publish, { lockEnabled: false });
+
+    await expect(relay.pollOnce()).resolves.toBe(1);
+
+    expect(lock.acquire).not.toHaveBeenCalled();
+  });
+
+  it('libera el lease al apagarse solo si lo poseía', async () => {
+    const publish = jest.fn<Promise<void>, [string, EventEnvelope<object>]>().mockResolvedValue(undefined);
+    const { relay, lock } = buildRelay([outboxRow(1)], publish);
+
+    await relay.pollOnce();
+    await relay.onModuleDestroy();
+
+    expect(lock.release).toHaveBeenCalledWith('outbox-relay', expect.any(String));
+  });
+
+  it('no libera un lease que nunca adquirió', async () => {
+    const publish = jest.fn<Promise<void>, [string, EventEnvelope<object>]>().mockResolvedValue(undefined);
+    const acquire = jest.fn<Promise<boolean>, [string, string, number]>().mockResolvedValue(false);
+    const { relay, lock } = buildRelay([outboxRow(1)], publish, { acquire });
+
+    await relay.pollOnce();
+    await relay.onModuleDestroy();
+
+    expect(lock.release).not.toHaveBeenCalled();
   });
 });

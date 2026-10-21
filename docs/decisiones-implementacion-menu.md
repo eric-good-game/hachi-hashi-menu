@@ -55,8 +55,9 @@ alcance entregado por hito.
 | D-43 | TTL de reintento configurables | Las colas usan `RABBITMQ_RETRY_TTLS_MS` (tres enteros en ms, por defecto `5000,15000,45000`). La topología conserva los nombres de D-34; solo cambia el TTL. | Permite que las pruebas de integración ejerciten los tres reintentos sin esperar más de un minuto. |
 | D-44 | Simuladores de desarrollo | `scripts/dev-inventory-publisher.cjs` publica `MenuItemAvailabilityChanged` al exchange real y `scripts/dev-jwt.cjs` genera claves RSA y firma un JWT RS256. | Cierran la brecha de pruebas del Hito 3 sin depender de Inventory ni Identity; no sustituyen a los servicios reales. |
 | D-45 | Pruebas de integración | Se usa Testcontainers con PostgreSQL 16 y RabbitMQ 3.13, migraciones Prisma reales y el runner nativo de Node (`node:test`). `pnpm test:integration` compila con `tsconfig.integration.json` y ejecuta en serie. | Evita el problema de Jest con el ESM de NestJS 12 y cubre relay, consumidor, idempotencia, `occurredAt` viejo, DLQ, reintentos y JWT contra infraestructura real. |
-| D-46 | Relay multi-instancia | Se mantiene una sola instancia del relay en el Hito 3 (coherente con D-33); no se implementa bloqueo distribuido. | El bloqueo/particionado se evaluará en el Hito 4 con carga real; documentarlo es suficiente para la etapa A. |
+| D-46 | Relay multi-instancia | Se mantiene una sola instancia del relay en el Hito 3 (coherente con D-33); no se implementa bloqueo distribuido. | El bloqueo/particionado se evaluará en el Hito 4 con carga real; documentarlo es suficiente para la etapa A. **Superado por D-48.** |
 | D-47 | Pipeline de CI | GitHub Actions (`.github/workflows/ci.yml`) con tres trabajos en cada push a `main` y pull request: **calidad** (typecheck, unitarias, build), **integración** (Testcontainers) e **imagen Docker** (solo build). Node se fija con `.nvmrc` (22) y `pnpm` con `packageManager` (`pnpm@11.25.0`); las acciones se anclan a sus versiones mayores actuales. El paso de integración pasa un glob de archivos compilados en lugar de un directorio. | El runner `node --test` de Node 22 no expande un directorio como argumento (Node 26 sí, lo que ocultó el fallo en local), así que el glob es obligatorio para que CI y local coincidan. `pnpm verify` reproduce el pipeline de calidad. |
+| D-48 | Bloqueo del relay multi-instancia | Con `OUTBOX_RELAY_LOCK_ENABLED=true` (por defecto) el relay toma un **lease en base de datos** sobre la tabla `relay_lock` mediante un único upsert atómico: se adquiere si está libre o vencido y se renueva por `OUTBOX_RELAY_LEASE_MS`. El lease se renueva antes de cada evento de un lote y se libera al apagar (`onModuleDestroy`). Instancia identificada por `OUTBOX_RELAY_INSTANCE_ID` o, por defecto, host + pid + sufijo aleatorio. | Un solo publicador conserva el orden por `seq` con varias réplicas, sin advisory locks atados a una conexión del pool ni transacciones interactivas largas. Se verificó con dos relays concurrentes sobre la misma base: con bloqueo publican cada evento una vez; sin bloqueo hay duplicados. |
 
 ## Ambigüedades que siguen abiertas
 
@@ -67,7 +68,7 @@ alcance entregado por hito.
 | Nombres definitivos de exchanges, colas y DLQ | Se usan los del documento y D-34: `hachi.events`, `menu.inventory-events`, `hachi.dlx`, `hachi.retry` y `menu.inventory-events.dlq`. |
 | Payload final de `MenuItemAvailabilityChanged` | Se asume `menuItemId` + `available` y se valida con `contracts/menu-item-availability-changed.v1.schema.json`; se confirma al documentar Inventory. |
 | Publicación de UUID semilla de platillos | Resuelto: se publican en `contracts/seed/menu-item-ids.json` y una prueba unitaria impide que el archivo se desincronice de la semilla. |
-| Relay multi-instancia | Resuelto para esta etapa en D-46: se asume una sola instancia; el bloqueo/particionado se evalúa en el Hito 4. |
+| Relay multi-instancia | Resuelto en D-48: lease en base de datos con renovación por evento y liberación al apagar; D-46 dejó de aplicar al escalar a varias réplicas. |
 | Reintentos del consumidor | Resuelto en D-35: tres colas con TTL creciente y DLQ; no se usa el plugin de mensajes retardados. El TTL es configurable con `RABBITMQ_RETRY_TTLS_MS` (D-43). |
 | Contrato de `MenuItemUpdated` y disponibilidad | El evento no incluye `available`; la disponibilidad llega por Inventory y no incrementa `revision`. Confirmado para esta etapa. |
 
@@ -128,7 +129,7 @@ Incluido:
 
 Diferido:
 
-- Bloqueo o particionado del relay para múltiples instancias (D-46).
+- Bloqueo o particionado del relay para múltiples instancias (D-46): implementado en el Hito 4 con un lease en base de datos (D-48).
 - JWKS, validación de issuer/audience y rotación automática de claves.
 - Métricas, trazas y alertas del relay/consumidor; herramienta de replay de la DLQ.
 - CI/CD y checklist de etapa B (Hito 4) — implementados en D-47.
@@ -142,11 +143,11 @@ Incluido:
 - Fijado de versiones: `.nvmrc` (Node 22) y `packageManager` (`pnpm@11.25.0`).
 - `pnpm verify` para reproducir el pipeline de calidad en local.
 - Checklist de etapa B en `docs/checklist-etapa-b.md`, con lo verificable hoy y lo bloqueado por Identity/Inventory.
+- Bloqueo del relay multi-instancia con lease en base de datos (D-48), con pruebas de integración de exclusión y de publicación exactamente una vez.
 - Repositorio del servicio: `eric-good-game/hachi-hashi-menu` (público, rama `main`).
 
 Diferido:
 
-- Bloqueo o particionado del relay para múltiples instancias (D-46).
 - Métricas, trazas y alertas del relay/consumidor; herramienta de replay de la DLQ.
 - Validación de etapa B de punta a punta (requiere Identity e Inventory reales).
 

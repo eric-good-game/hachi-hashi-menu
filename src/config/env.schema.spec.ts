@@ -117,4 +117,36 @@ describe('envSchema', () => {
 
     expect(env.AUTH_MODE).toBe('jwt');
   });
+
+  it('activa el lease del relay por defecto', () => {
+    const env = validateEnv(base);
+
+    expect(env.OUTBOX_RELAY_LOCK_ENABLED).toBe(true);
+    expect(env.OUTBOX_RELAY_LEASE_MS).toBe(15_000);
+    expect(env.OUTBOX_RELAY_INSTANCE_ID).toBeUndefined();
+  });
+
+  it('rechaza un lease más corto que el intervalo de sondeo', () => {
+    const result = envSchema.safeParse({
+      ...base,
+      OUTBOX_POLL_INTERVAL_MS: '5000',
+      OUTBOX_RELAY_LEASE_MS: '1000',
+    });
+
+    expect(result.success).toBe(false);
+    expect(
+      result.error?.issues.some((issue) => issue.path.join('.') === 'OUTBOX_RELAY_LEASE_MS'),
+    ).toBe(true);
+  });
+
+  it('permite un lease corto si el bloqueo está deshabilitado', () => {
+    const env = envSchema.parse({
+      ...base,
+      OUTBOX_RELAY_LOCK_ENABLED: 'false',
+      OUTBOX_POLL_INTERVAL_MS: '5000',
+      OUTBOX_RELAY_LEASE_MS: '1000',
+    });
+
+    expect(env.OUTBOX_RELAY_LOCK_ENABLED).toBe(false);
+  });
 });

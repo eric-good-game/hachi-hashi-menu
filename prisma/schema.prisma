@@ -88,3 +88,13 @@ model ProcessedMessage {
 
   @@map("processed_message")
 }
+
+/// Lease del relay del Outbox: una sola instancia publica a la vez (D-48).
+model RelayLock {
+  name      String   @id @db.VarChar(80)
+  holder    String   @db.VarChar(120)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("relay_lock")
+}

@@ -229,9 +229,13 @@ Los TTL de las colas de reintento se pueden ajustar con `RABBITMQ_RETRY_TTLS_MS`
 enteros en milisegundos separados por coma). Los valores por defecto son `5000,15000,45000`;
 las pruebas de integración los reducen para no esperar minutos.
 
-El relay del Outbox asume **una sola instancia** en esta etapa (D-33): no hay bloqueo
-distribuido, así que dos procesos publicarían los mismos eventos. El bloqueo o particionado
-se evaluará en el Hito 4.
+El relay del Outbox usa un **lease en la base de datos** (D-48) para que una sola
+instancia publique a la vez y se conserve el orden por `seq`, incluso con varias réplicas.
+`OUTBOX_RELAY_LOCK_ENABLED=true` (por defecto) activa el bloqueo; `OUTBOX_RELAY_LEASE_MS`
+(15 s por defecto) es su vigencia y se renueva antes de cada evento; si una instancia cae,
+otra recupera el lease al expirar. `OUTBOX_RELAY_INSTANCE_ID` permite fijar el identificador
+del publicador (por defecto se deriva de host, pid y un sufijo aleatorio). Con el bloqueo
+deshabilitado se asume una sola instancia: dos procesos publicarían los mismos eventos.
 
 Inspección local:
 
@@ -265,6 +269,8 @@ efímeros. Cubre:
   platillo desconocido.
 - Contrato inválido → DLQ.
 - Reintentos con TTL creciente (`RABBITMQ_RETRY_TTLS_MS` reducido) y caída final en la DLQ.
+- Bloqueo del relay multi-instancia: exclusión del lease, relevo al expirar y publicación de
+  cada evento exactamente una vez con dos relays concurrentes (D-48).
 - JWT RS256: 401 sin token/expirado/firma ajena, 403 sin rol, 201 con `admin`, roles en
   `realm_access` y 404 de las herramientas `dev` en modo integrado.
 
@@ -318,7 +324,7 @@ src/
   common/            # problem+json, auth dev/JWT, ETag y correlation-id
   config/            # esquema de entorno y protecciones de arranque
   events/            # contrato, constructor y validador AJV
-  messaging/         # relay del Outbox y adaptadores RabbitMQ
+  messaging/         # relay del Outbox (con lease), adaptadores RabbitMQ y contrato consumido
   seed/              # semilla idempotente y exportación de IDs
 contracts/           # esquemas de eventos y IDs semilla
 docs/                # diseño y decisiones de implementación
