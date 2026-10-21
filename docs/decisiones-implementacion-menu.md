@@ -51,6 +51,11 @@ alcance entregado por hito.
 | D-39 | Simulador de disponibilidad | `PUT /api/menu/dev/items/{id}/availability` exige rol `admin`, solo existe con `DEV_TOOLS_ENABLED=true` y devuelve `applied`, `duplicate` o `stale`. En modo integrado responde 404. | Permite probar la etapa A sin Inventory ni RabbitMQ. No sustituye al consumidor real. |
 | D-40 | Salud y observabilidad | `/health` sigue comprobando solo PostgreSQL; RabbitMQ no es requisito para el health. El relay y el consumidor registran conexión, reintentos, descartes y resultados. | Un broker caído no debe tumbar el servicio; el relay reintenta y el consumidor se reconecta. |
 | D-41 | RabbitMQ local | Se añade al compose con el perfil `messaging`; no se levanta con el comando por defecto. | Mantiene el arranque de la etapa A ligero y permite probar el Hito 3 con un comando explícito. |
+| D-42 | Contratos provisionales | `MenuItemUpdated` queda estable para la etapa A; `MenuItemAvailabilityChanged` queda marcado como **provisional** porque Inventory no existe. Se documenta el checklist de confirmación en `contracts/README.md`. | Evita tratar supuestos como acuerdos cerrados y deja explícito qué validar al integrar Inventory/Identity. |
+| D-43 | TTL de reintento configurables | Las colas usan `RABBITMQ_RETRY_TTLS_MS` (tres enteros en ms, por defecto `5000,15000,45000`). La topología conserva los nombres de D-34; solo cambia el TTL. | Permite que las pruebas de integración ejerciten los tres reintentos sin esperar más de un minuto. |
+| D-44 | Simuladores de desarrollo | `scripts/dev-inventory-publisher.cjs` publica `MenuItemAvailabilityChanged` al exchange real y `scripts/dev-jwt.cjs` genera claves RSA y firma un JWT RS256. | Cierran la brecha de pruebas del Hito 3 sin depender de Inventory ni Identity; no sustituyen a los servicios reales. |
+| D-45 | Pruebas de integración | Se usa Testcontainers con PostgreSQL 16 y RabbitMQ 3.13, migraciones Prisma reales y el runner nativo de Node (`node:test`). `pnpm test:integration` compila con `tsconfig.integration.json` y ejecuta en serie. | Evita el problema de Jest con el ESM de NestJS 12 y cubre relay, consumidor, idempotencia, `occurredAt` viejo, DLQ, reintentos y JWT contra infraestructura real. |
+| D-46 | Relay multi-instancia | Se mantiene una sola instancia del relay en el Hito 3 (coherente con D-33); no se implementa bloqueo distribuido. | El bloqueo/particionado se evaluará en el Hito 4 con carga real; documentarlo es suficiente para la etapa A. |
 
 ## Ambigüedades que siguen abiertas
 
@@ -61,8 +66,8 @@ alcance entregado por hito.
 | Nombres definitivos de exchanges, colas y DLQ | Se usan los del documento y D-34: `hachi.events`, `menu.inventory-events`, `hachi.dlx`, `hachi.retry` y `menu.inventory-events.dlq`. |
 | Payload final de `MenuItemAvailabilityChanged` | Se asume `menuItemId` + `available` y se valida con `contracts/menu-item-availability-changed.v1.schema.json`; se confirma al documentar Inventory. |
 | Publicación de UUID semilla de platillos | Resuelto: se publican en `contracts/seed/menu-item-ids.json` y una prueba unitaria impide que el archivo se desincronice de la semilla. |
-| Relay multi-instancia | Abierto: el Hito 3 asume una sola instancia del relay. El bloqueo/particionado se evaluará en el Hito 4. |
-| Reintentos del consumidor | Resuelto en D-35: tres colas con TTL creciente y DLQ; no se usa el plugin de mensajes retardados. |
+| Relay multi-instancia | Resuelto para esta etapa en D-46: se asume una sola instancia; el bloqueo/particionado se evalúa en el Hito 4. |
+| Reintentos del consumidor | Resuelto en D-35: tres colas con TTL creciente y DLQ; no se usa el plugin de mensajes retardados. El TTL es configurable con `RABBITMQ_RETRY_TTLS_MS` (D-43). |
 | Contrato de `MenuItemUpdated` y disponibilidad | El evento no incluye `available`; la disponibilidad llega por Inventory y no incrementa `revision`. Confirmado para esta etapa. |
 
 ## Alcance del Hito 1 (walking skeleton)
@@ -83,7 +88,7 @@ Diferido a hitos posteriores:
 
 - Hito 2: completado; incluye edición de platillo, estado y borrado de categoría, fotos, reglas RN-04/RN-10/RN-11, semilla de 30 platillos y publicación de sus IDs.
 - Hito 3: completado; incluye relay del Outbox, RabbitMQ, consumidor de disponibilidad, JWT real y contratos validados con AJV.
-- Hito 4: pruebas de integración con Testcontainers, CI/CD y checklist de etapa B.
+- Hito 4: CI/CD y checklist de etapa B (las pruebas de integración con Testcontainers se adelantaron al cierre del Hito 3, D-45).
 
 ## Alcance del Hito 2
 
@@ -100,7 +105,7 @@ Incluido:
 Diferido:
 
 - Hito 3: completado; incluye relay del Outbox, RabbitMQ, consumidor de disponibilidad, JWT real y validación de contratos con AJV.
-- Hito 4: pruebas de integración con Testcontainers, CI/CD y checklist de etapa B.
+- Hito 4: CI/CD y checklist de etapa B (las pruebas de integración con Testcontainers se adelantaron al cierre del Hito 3, D-45).
 - Optimización de listados con proyecciones SQL específicas si el volumen lo exige.
 - Limpieza automática de fotos huérfanas (hoy solo se borra la anterior después del commit).
 
@@ -114,13 +119,16 @@ Incluido:
 - Autenticación JWT RS256 con clave pública por configuración o archivo, roles y sustitución del guard de desarrollo en administración.
 - Validación AJV de eventos publicados y consumidos, con esquemas y ejemplos versionados en `contracts/`.
 - Simulador de disponibilidad para la etapa A, limitado a `DEV_TOOLS_ENABLED=true` y rol `admin`.
-- Pruebas unitarias de contratos, relay, consumidor, JWT y configuración (52 en total); script de humo ampliado con disponibilidad.
+- Pruebas unitarias de contratos, relay, consumidor, JWT y configuración (55 en total); script de humo ampliado con disponibilidad.
 - Perfil `messaging` en Docker Compose y copia de `contracts/` a la imagen de producción.
+- Cierre de brechas de la etapa A: contratos provisionales documentados (D-42), simuladores
+  `dev-inventory-publisher` y `dev-jwt` (D-44), TTL de reintento configurables (D-43),
+  pruebas de integración con Testcontainers (D-45) y guion `scripts/smoke-messaging.sh`.
 
 Diferido:
 
-- Bloqueo o particionado del relay para múltiples instancias.
+- Bloqueo o particionado del relay para múltiples instancias (D-46).
 - JWKS, validación de issuer/audience y rotación automática de claves.
 - Métricas, trazas y alertas del relay/consumidor; herramienta de replay de la DLQ.
-- Pruebas de integración con Testcontainers, CI/CD y checklist de etapa B (Hito 4).
+- CI/CD y checklist de etapa B (Hito 4).
 - Confirmación final del contrato de Identity y del payload de Inventory.

@@ -21,6 +21,7 @@ import type { AppEnv } from './env.schema';
         OUTBOX_POLL_INTERVAL_MS: config.getOrThrow('OUTBOX_POLL_INTERVAL_MS'),
         OUTBOX_BATCH_SIZE: config.getOrThrow('OUTBOX_BATCH_SIZE'),
         CONSUMER_MAX_RETRIES: config.getOrThrow('CONSUMER_MAX_RETRIES'),
+        RABBITMQ_RETRY_TTLS_MS: config.getOrThrow('RABBITMQ_RETRY_TTLS_MS'),
         JWT_PUBLIC_KEY: config.get('JWT_PUBLIC_KEY'),
         JWT_PUBLIC_KEY_FILE: config.get('JWT_PUBLIC_KEY_FILE'),
         DEV_TOOLS_ENABLED: config.getOrThrow('DEV_TOOLS_ENABLED'),

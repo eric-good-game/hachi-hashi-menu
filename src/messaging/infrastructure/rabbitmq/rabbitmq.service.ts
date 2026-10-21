@@ -147,11 +147,11 @@ export class RabbitMqService implements OnModuleDestroy {
     await channel.assertQueue(AVAILABILITY_DLQ, { durable: true });
     await channel.bindQueue(AVAILABILITY_DLQ, DEAD_LETTER_EXCHANGE, AVAILABILITY_DLQ_ROUTING_KEY);
 
-    for (const retry of AVAILABILITY_RETRY_QUEUES) {
+    for (const [index, retry] of AVAILABILITY_RETRY_QUEUES.entries()) {
       await channel.assertQueue(retry.queue, {
         durable: true,
         arguments: {
-          'x-message-ttl': retry.ttlMs,
+          'x-message-ttl': this.env.RABBITMQ_RETRY_TTLS_MS[index]!,
           'x-dead-letter-exchange': EVENTS_EXCHANGE,
           'x-dead-letter-routing-key': AVAILABILITY_ROUTING_KEY,
         },

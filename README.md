@@ -223,6 +223,14 @@ reprograman en la cola de reintento correspondiente; después de `CONSUMER_MAX_R
 intentos el mensaje va a la DLQ. La actualización de disponibilidad y el registro en
 `processed_message` ocurren en la misma transacción.
 
+Los TTL de las colas de reintento se pueden ajustar con `RABBITMQ_RETRY_TTLS_MS` (tres
+enteros en milisegundos separados por coma). Los valores por defecto son `5000,15000,45000`;
+las pruebas de integración los reducen para no esperar minutos.
+
+El relay del Outbox asume **una sola instancia** en esta etapa (D-33): no hay bloqueo
+distribuido, así que dos procesos publicarían los mismos eventos. El bloqueo o particionado
+se evaluará en el Hito 4.
+
 Inspección local:
 
 ```bash
@@ -240,10 +248,26 @@ curl -s -X PUT "$BASE/dev/items/$ITEM_ID/availability" \
 ## Pruebas
 
 ```bash
-pnpm test        # 52 unitarias: dominio, semilla, contratos, relay, consumidor y JWT
-pnpm typecheck   # TypeScript estricto
-pnpm build       # Compilación
+pnpm test              # unitarias: dominio, semilla, contratos, relay, consumidor y JWT
+pnpm test:integration  # integración con Testcontainers (PostgreSQL y RabbitMQ reales)
+pnpm typecheck         # TypeScript estricto
+pnpm build             # Compilación
 ```
+
+`pnpm test:integration` requiere Docker en ejecución. Compila las pruebas con
+`tsconfig.integration.json` y ejecuta el runner nativo de Node sobre contenedores
+efímeros. Cubre:
+
+- Relay del Outbox: publicación real a `hachi.events`, orden y `published_at`.
+- Consumidor de disponibilidad: aplicado, duplicado, descarte por `occurredAt` viejo y
+  platillo desconocido.
+- Contrato inválido → DLQ.
+- Reintentos con TTL creciente (`RABBITMQ_RETRY_TTLS_MS` reducido) y caída final en la DLQ.
+- JWT RS256: 401 sin token/expirado/firma ajena, 403 sin rol, 201 con `admin`, roles en
+  `realm_access` y 404 de las herramientas `dev` en modo integrado.
+
+No requiere Inventory ni Identity: usan los contratos provisionales descritos en
+[`contracts/README.md`](contracts/README.md).
 
 Para una verificación de humo contra el servicio levantado (incluye edición, fotos,
 renombre de categoría, reglas RN-06, simulador de disponibilidad y Outbox):
@@ -252,8 +276,15 @@ renombre de categoría, reglas RN-06, simulador de disponibilidad y Outbox):
 ./scripts/smoke.sh
 ```
 
+Para verificar el consumidor RabbitMQ real, con el servicio en modo mensajería:
+
+```bash
+./scripts/smoke-messaging.sh
+```
+
 Las pruebas unitarias usan un shim de Jest para `@nestjs/common` porque NestJS 12 publica
-ESM puro; el runtime de la aplicación no usa ese shim.
+ESM puro; el runtime de la aplicación no usa ese shim. Las de integración compilan a
+CommonJS y aprovechan que Node 24+ puede requerir ESM nativamente.
 
 ## Estructura
 
@@ -284,5 +315,9 @@ bruno/               # colección de flujos principales
 | `pnpm db:deploy` | Aplica migraciones (contenedores/CI) |
 | `pnpm seed` | Ejecuta la semilla manualmente |
 | `pnpm seed:ids` | Regenera `contracts/seed/menu-item-ids.json` |
+| `pnpm dev:jwt` | Genera claves RSA y firma un JWT para `AUTH_MODE=jwt` |
+| `pnpm dev:publish-availability` | Publica `MenuItemAvailabilityChanged` (simulador de Inventory) |
+| `./scripts/smoke-messaging.sh` | Humo del consumidor RabbitMQ real y la DLQ |
+| `pnpm test:integration` | Pruebas de integración con Testcontainers |
 | `pnpm db:reset` | Reinicia la base y reaplica migraciones |
 | `docker compose --profile messaging up -d rabbitmq` | Levanta RabbitMQ para el Hito 3 |

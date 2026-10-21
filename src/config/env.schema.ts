@@ -28,6 +28,11 @@ export const envSchema = z
     OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
     OUTBOX_BATCH_SIZE: z.coerce.number().int().positive().default(50),
     CONSUMER_MAX_RETRIES: z.coerce.number().int().min(0).default(3),
+    RABBITMQ_RETRY_TTLS_MS: z
+      .string()
+      .default('5000,15000,45000')
+      .transform((value) => value.split(',').map((part) => Number(part.trim())))
+      .pipe(z.array(z.number().int().positive()).length(3)),
 
     JWT_PUBLIC_KEY: z.string().optional(),
     JWT_PUBLIC_KEY_FILE: z.string().optional(),

@@ -71,6 +71,33 @@ describe('envSchema', () => {
     expect(env.CONSUMERS_ENABLED).toBe(true);
   });
 
+  it('aplica los TTL de reintento por defecto', () => {
+    const env = validateEnv(base);
+
+    expect(env.RABBITMQ_RETRY_TTLS_MS).toEqual([5_000, 15_000, 45_000]);
+  });
+
+  it('parsea TTL de reintento personalizados', () => {
+    const env = envSchema.parse({
+      ...base,
+      RABBITMQ_RETRY_TTLS_MS: '100,200,300',
+    });
+
+    expect(env.RABBITMQ_RETRY_TTLS_MS).toEqual([100, 200, 300]);
+  });
+
+  it('rechaza TTL de reintento que no sean tres enteros positivos', () => {
+    const result = envSchema.safeParse({
+      ...base,
+      RABBITMQ_RETRY_TTLS_MS: '100,200',
+    });
+
+    expect(result.success).toBe(false);
+    expect(
+      result.error?.issues.some((issue) => issue.path.join('.') === 'RABBITMQ_RETRY_TTLS_MS'),
+    ).toBe(true);
+  });
+
   it('exige una clave pública cuando AUTH_MODE=jwt', () => {
     const result = envSchema.safeParse({
       ...base,
