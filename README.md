@@ -1,5 +1,7 @@
 # Hachi Hashi — Menu/Catalog
 
+[![CI](https://github.com/eric-good-game/hachi-hashi-menu/actions/workflows/ci.yml/badge.svg)](https://github.com/eric-good-game/hachi-hashi-menu/actions/workflows/ci.yml)
+
 Servicio dueño del menú del restaurante: platillos, categorías, precios, alérgenos y fotos.
 Construido con NestJS, Prisma y PostgreSQL.
 
@@ -285,6 +287,24 @@ Para verificar el consumidor RabbitMQ real, con el servicio en modo mensajería:
 Las pruebas unitarias usan un shim de Jest para `@nestjs/common` porque NestJS 12 publica
 ESM puro; el runtime de la aplicación no usa ese shim. Las de integración compilan a
 CommonJS y aprovechan que Node 24+ puede requerir ESM nativamente.
+
+### Integración continua
+
+GitHub Actions (`.github/workflows/ci.yml`) ejecuta en cada push a `main` y en cada pull
+request tres jobs: **calidad** (typecheck, unitarias y build), **integración**
+(Testcontainers con PostgreSQL y RabbitMQ reales) e **imagen Docker** (build, sin publicar).
+Usa Node 22 (`.nvmrc`) y `pnpm` fijado por `packageManager`.
+
+Para reproducir el pipeline en local:
+
+```bash
+pnpm verify              # prisma generate + typecheck + unitarias + build
+pnpm test:integration    # requiere Docker
+docker build -t hachi-hashi-menu:ci .
+```
+
+El paso a la etapa B (modo integrado) está detallado en
+[`docs/checklist-etapa-b.md`](docs/checklist-etapa-b.md).
 
 ## Estructura
 
