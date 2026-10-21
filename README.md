@@ -251,6 +251,43 @@ curl -s -X PUT "$BASE/dev/items/$ITEM_ID/availability" \
   -d '{"available":false}'
 ```
 
+## Observabilidad y operación (Hito 4)
+
+`GET /metrics` expone métricas en formato Prometheus con
+[`@prometheus-io/client`](https://github.com/prometheus/client_js). Queda fuera del prefijo
+`/api`, no pasa por autenticación y se desactiva con `METRICS_ENABLED=false` (responde 404),
+así que debe publicarse solo en la red interna. Cubre:
+
+| Grupo | Métricas |
+|---|---|
+| Outbox | `menu_outbox_pending_events`, `menu_outbox_relay_published_total`, `menu_outbox_relay_failures_total`, `menu_outbox_relay_cycle_errors_total` |
+| Lease del relay | `menu_outbox_relay_lease_held`, `menu_outbox_relay_lease_acquisitions_total` |
+| Consumidor | `menu_availability_consumer_processed_total{status}`, `menu_availability_consumer_failures_total`, `menu_availability_consumer_retries_total`, `menu_availability_consumer_dead_letters_total{reason}`, `menu_availability_consumer_duration_seconds{status}` |
+| Colas | `menu_availability_queue_messages{queue}`, consultada de forma pasiva cada `QUEUE_METRICS_INTERVAL_MS` |
+
+```bash
+curl -s http://localhost:3000/metrics | grep menu_outbox
+```
+
+Las reglas de alerta (DLQ con mensajes, Outbox atascado, relay sin lease, fallos del
+consumidor) están en [`ops/prometheus/alerts.yml`](ops/prometheus/alerts.yml) y el
+procedimiento de triaje en [`docs/runbook-operacion.md`](docs/runbook-operacion.md).
+
+Para recuperar mensajes descartados:
+
+```bash
+pnpm replay:dlq -- --dry-run --limit 10   # inspecciona sin publicar
+pnpm replay:dlq -- --limit 100            # los devuelve a hachi.events
+```
+
+El replay conserva el `messageId` (el consumidor es idempotente), reinicia `x-retry-count` y
+deduce la routing key original de `x-death`.
+
+Trazas: no hay colector todavía, pero el relay publica cada evento con un `traceparent` W3C
+nuevo y el consumidor lo continúa al reprogramar un reintento. Ambos registran
+`correlationId`, `traceId` y `spanId` en los logs, así que un cambio de disponibilidad se
+puede seguir de extremo a extremo con ese `correlationId`.
+
 ## Pruebas
 
 ```bash
@@ -271,6 +308,10 @@ efímeros. Cubre:
 - Reintentos con TTL creciente (`RABBITMQ_RETRY_TTLS_MS` reducido) y caída final en la DLQ.
 - Bloqueo del relay multi-instancia: exclusión del lease, relevo al expirar y publicación de
   cada evento exactamente una vez con dos relays concurrentes (D-48).
+- Observabilidad: `GET /metrics` fuera de `/api`, métricas registradas y estado real del lease
+  y de la profundidad de colas (D-49).
+- Replay de la DLQ: `--dry-run` no consume y el replay devuelve el mensaje a la cola de
+  disponibilidad (D-50).
 - JWT RS256: 401 sin token/expirado/firma ajena, 403 sin rol, 201 con `admin`, roles en
   `realm_access` y 404 de las herramientas `dev` en modo integrado.
 
@@ -325,9 +366,11 @@ src/
   config/            # esquema de entorno y protecciones de arranque
   events/            # contrato, constructor y validador AJV
   messaging/         # relay del Outbox (con lease), adaptadores RabbitMQ y contrato consumido
+  observability/     # métricas Prometheus, correlación de trazas y endpoint /metrics
   seed/              # semilla idempotente y exportación de IDs
 contracts/           # esquemas de eventos y IDs semilla
-docs/                # diseño y decisiones de implementación
+docs/                # diseño, decisiones de implementación y runbook de operación
+ops/                 # reglas de Prometheus para el despliegue
 bruno/               # colección de flujos principales
 ```
 
@@ -343,6 +386,7 @@ bruno/               # colección de flujos principales
 | `pnpm seed:ids` | Regenera `contracts/seed/menu-item-ids.json` |
 | `pnpm dev:jwt` | Genera claves RSA y firma un JWT para `AUTH_MODE=jwt` |
 | `pnpm dev:publish-availability` | Publica `MenuItemAvailabilityChanged` (simulador de Inventory) |
+| `pnpm replay:dlq` | Reprograma mensajes de la DLQ (`--dry-run`, `--limit`) |
 | `./scripts/smoke-messaging.sh` | Humo del consumidor RabbitMQ real y la DLQ |
 | `pnpm test:integration` | Pruebas de integración con Testcontainers |
 | `pnpm db:reset` | Reinicia la base y reaplica migraciones |

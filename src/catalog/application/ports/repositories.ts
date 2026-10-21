@@ -86,6 +86,7 @@ export interface OutboxRecord extends NewOutboxEvent {
 export interface OutboxRepository {
   append(event: NewOutboxEvent): Promise<void>;
   listUnpublished(limit: number): Promise<OutboxRecord[]>;
+  countUnpublished(): Promise<number>;
   markPublished(seq: bigint, publishedAt: Date): Promise<void>;
   recordFailure(seq: bigint, error: string): Promise<void>;
 }

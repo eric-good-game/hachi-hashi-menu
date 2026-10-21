@@ -1,0 +1,137 @@
+# Reglas de alerta para el servicio Menu/Catalog (D-49).
+#
+# Requiere que Prometheus raspe `GET /metrics` de cada réplica (METRICS_ENABLED)
+# y, para las alertas de profundidad de cola, que el broker exponga su propio
+# `/metrics` mediante el plugin `rabbitmq_prometheus`
+# (métrica `rabbitmq_queue_messages`).
+#
+# Las alertas sobre `menu_availability_queue_messages` y
+# `menu_outbox_relay_lease_held` solo tienen sentido en despliegues donde el
+# consumidor y el relay están habilitados (CONSUMERS_ENABLED /
+# OUTBOX_PUBLISH_ENABLED). Ver docs/runbook-operacion.md.
+
+groups:
+  - name: hachi-hashi-menu.outbox
+    rules:
+      - alert: MenuOutboxRelayWithoutLeader
+        expr: sum(menu_outbox_relay_lease_held) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Ninguna instancia de Menu posee el lease del relay del Outbox
+          description: >-
+            Hay réplicas con OUTBOX_PUBLISH_ENABLED=true y el bloqueo activo,
+            pero ninguna mantiene el lease: nadie está publicando eventos.
+            Revisar conectividad con PostgreSQL y el paso de migraciones.
+          runbook_url: docs/runbook-operacion.md#relay-sin-lease
+
+      - alert: MenuOutboxBacklog
+        expr: menu_outbox_pending_events > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: El Outbox acumula más de 100 eventos sin publicar
+          description: >-
+            El relay no da abasto o el broker rechaza publicaciones. Revisar
+            `menu_outbox_relay_failures_total` y la conectividad con RabbitMQ.
+          runbook_url: docs/runbook-operacion.md#outbox-atascado
+
+      - alert: MenuOutboxBacklogCritical
+        expr: menu_outbox_pending_events > 1000
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: El Outbox supera los 1000 eventos pendientes
+          description: >-
+            La publicación lleva mucho tiempo detenida; los menús pueden estar
+            desactualizados. Aplicar el runbook de Outbox atascado.
+          runbook_url: docs/runbook-operacion.md#outbox-atascado
+
+      - alert: MenuOutboxRelayStalled
+        expr: menu_outbox_pending_events > 0 and increase(menu_outbox_relay_published_total[15m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Hay eventos pendientes pero el relay no publica
+          description: >-
+            Nadie publica desde hace 15 minutos con eventos en cola. Revisar el
+            lease, los fallos de publicación y la conexión con el broker.
+          runbook_url: docs/runbook-operacion.md#outbox-atascado
+
+      - alert: MenuOutboxRelayPublishFailures
+        expr: increase(menu_outbox_relay_failures_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Fallos al publicar eventos del Outbox
+          description: >-
+            El relay registró fallos recientes; se reintenta antes de avanzar,
+            así que el orden está protegido, pero la entrega se retrasa.
+          runbook_url: docs/runbook-operacion.md#outbox-atascado
+
+      - alert: MenuOutboxRelayCycleErrors
+        expr: increase(menu_outbox_relay_cycle_errors_total[15m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Errores repetidos en el ciclo del relay
+          description: >-
+            Errores no controlados del ciclo (por ejemplo la base de datos).
+            Revisar los logs con el `correlationId` del evento afectado.
+          runbook_url: docs/runbook-operacion.md#outbox-atascado
+
+  - name: hachi-hashi-menu.availability
+    rules:
+      - alert: MenuAvailabilityConsumerFailures
+        expr: increase(menu_availability_consumer_failures_total[15m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: El consumidor de disponibilidad acumula errores transitorios
+          description: >-
+            Los mensajes se reprograman, pero muchos fallos apuntan a la base
+            de datos o a un mensaje venenoso. Revisar reintentos y DLQ.
+          runbook_url: docs/runbook-operacion.md#consumer-con-errores
+
+      - alert: MenuAvailabilityDeadLetters
+        expr: increase(menu_availability_consumer_dead_letters_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Llegaron mensajes al descarte desde el consumidor
+          description: >-
+            Hay mensajes con contrato inválido o con reintentos agotados.
+            Diagnosticar por el motivo y decidir si se reprocesan.
+          runbook_url: docs/runbook-operacion.md#dlq-con-mensajes
+
+      - alert: MenuAvailabilityDlqNotEmpty
+        expr: rabbitmq_queue_messages{queue="menu.inventory-events.dlq"} > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: La DLQ de disponibilidad no está vacía
+          description: >-
+            Mensajes descartados hace más de 10 minutos. Revisar el motivo
+            (`reason`) y reprogramarlos con `pnpm replay:dlq` si procede.
+          runbook_url: docs/runbook-operacion.md#dlq-con-mensajes
+
+      - alert: MenuAvailabilityQueueBacklog
+        expr: menu_availability_queue_messages{queue="menu.inventory-events"} > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: El consumidor de disponibilidad no da abasto
+          description: >-
+            La cola principal crece de forma sostenida. Revisar la latencia de
+            la base de datos y escalar réplicas del consumidor.
+          runbook_url: docs/runbook-operacion.md#consumer-con-errores

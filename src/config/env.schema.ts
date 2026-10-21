@@ -43,6 +43,8 @@ export const envSchema = z
     DEV_TOOLS_ENABLED: booleanFromEnv.default(true),
     SEED_ON_START: booleanFromEnv.default(false),
     PHOTO_STORAGE_PATH: z.string().default('./var/photos'),
+    METRICS_ENABLED: booleanFromEnv.default(true),
+    QUEUE_METRICS_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
   })
   .superRefine((env, ctx) => {
     const fail = (path: string, message: string) => {

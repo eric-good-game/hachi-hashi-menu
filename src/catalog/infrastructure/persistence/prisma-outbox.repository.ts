@@ -44,6 +44,10 @@ export class PrismaOutboxRepository implements OutboxRepository {
     }));
   }
 
+  async countUnpublished(): Promise<number> {
+    return this.db.outboxEvent.count({ where: { publishedAt: null } });
+  }
+
   async markPublished(seq: bigint, publishedAt: Date): Promise<void> {
     await this.db.outboxEvent.update({
       where: { seq },

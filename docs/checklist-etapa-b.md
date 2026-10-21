@@ -45,7 +45,9 @@ Leyenda:
 - [x] ✅ Decidir relay mono-instancia vs bloqueo/particionado (D-46): resuelto con el lease
       en base de datos (D-48). Con varias réplicas solo una publica a la vez; verificado en
       `test/integration/hito4-relay-lock.test.ts`.
-- [ ] ⏳ Monitoreo y alerta de la DLQ; runbook de replay (hoy no existe herramienta).
+- [x] ✅ Monitoreo y alerta de la DLQ y del Outbox, con runbook de replay (D-49 y D-50):
+      métricas en `GET /metrics`, reglas en `ops/prometheus/alerts.yml`, procedimiento en
+      `docs/runbook-operacion.md` y `pnpm replay:dlq`.
 - [ ] ✅ Confirmar publicación con publisher confirms, orden por `seq` y `published_at`.
       Cubierto por la prueba de integración del relay.
 
@@ -70,9 +72,14 @@ Leyenda:
 
 ## 6. Observabilidad y operación
 
-- [ ] ⏳ Métricas del relay y del consumidor (pendientes, latencia, reintentos, DLQ).
-- [ ] ⏳ Trazas distribuidas y `correlationId` propagado a Identity/Inventory.
-- [ ] ⏳ Alertas por crecimiento de la DLQ y por Outbox atascado.
+- [x] ✅ Métricas del relay y del consumidor (pendientes, publicados, fallos, lease, reintentos,
+      DLQ, duración y profundidad de colas) en `GET /metrics`, fuera del prefijo `/api` (D-49).
+- [ ] ⏳ Trazas distribuidas y `correlationId` propagado a Identity/Inventory: el servicio ya
+      propaga `traceparent` y el `correlationId` en los mensajes y en los logs (D-49); falta el
+      colector y confirmar la correlación con los otros servicios.
+- [x] ✅ Alertas por crecimiento de la DLQ, Outbox atascado y relay sin lease, con umbrales
+      documentados en `ops/prometheus/alerts.yml` (D-49 y D-50).
+- [x] ✅ Runbook de operación con triaje, consultas de diagnóstico y replay de la DLQ (D-50).
 - [ ] ✅ `/health` comprueba PostgreSQL y no exige RabbitMQ (D-40).
 
 ## 7. Pruebas y gates
@@ -95,5 +102,6 @@ Leyenda:
 1. CI verde en `main`.
 2. Contratos de Inventory e Identity confirmados y pruebas de contrato en verde.
 3. `APP_MODE=integrated` con JWT real y herramientas `dev` devolviendo 404.
-4. DLQ con monitoreo y runbook; lease del relay multi-instancia implementado (D-48).
+4. DLQ con monitoreo, alertas y runbook (D-49 y D-50); lease del relay multi-instancia
+   implementado (D-48).
 5. Migraciones y backups operativos.

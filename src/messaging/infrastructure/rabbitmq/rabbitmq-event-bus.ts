@@ -8,7 +8,11 @@ import { RabbitMqService } from './rabbitmq.service';
 export class RabbitMqEventBus implements EventBusPort {
   constructor(private readonly rabbit: RabbitMqService) {}
 
-  async publish(routingKey: string, envelope: EventEnvelope<object>): Promise<void> {
-    await this.rabbit.publish(EVENTS_EXCHANGE, routingKey, envelope);
+  async publish(
+    routingKey: string,
+    envelope: EventEnvelope<object>,
+    headers?: Record<string, unknown>,
+  ): Promise<void> {
+    await this.rabbit.publish(EVENTS_EXCHANGE, routingKey, envelope, headers);
   }
 }

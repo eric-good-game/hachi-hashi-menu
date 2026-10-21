@@ -6,6 +6,7 @@ import { CatalogModule } from '../catalog/catalog.module';
 import { PersistenceModule } from '../catalog/infrastructure/persistence/persistence.module';
 import { PrismaService } from '../catalog/infrastructure/persistence/prisma.service';
 import { ContractValidator } from '../events/contract-validator';
+import { AvailabilityQueueMetrics } from './infrastructure/availability-queue-metrics';
 import { OutboxRelay } from './application/outbox-relay.service';
 import { LoggingEventBus } from './infrastructure/logging-event-bus';
 import { PrismaRelayLockRepository } from './infrastructure/prisma-relay-lock.repository';
@@ -36,6 +37,7 @@ import { RabbitMqService } from './infrastructure/rabbitmq/rabbitmq.service';
     },
     OutboxRelay,
     RabbitMqAvailabilityConsumer,
+    AvailabilityQueueMetrics,
   ],
 })
 export class MessagingModule {}

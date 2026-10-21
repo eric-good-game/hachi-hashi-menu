@@ -7,6 +7,9 @@ import type { OutboxRepository } from '../../catalog/application/ports/repositor
 import type { ClockPort } from '../../catalog/application/ports/system';
 import { CLOCK, EVENT_BUS, OUTBOX_REPOSITORY, RELAY_LOCK } from '../../catalog/catalog.tokens';
 import { ContractValidator } from '../../events/contract-validator';
+import { logContext } from '../../observability/log-context';
+import { MetricsService } from '../../observability/metrics.service';
+import { startTraceparent } from '../../observability/trace-context';
 import type { RelayLockPort } from './ports/relay-lock';
 import { toOutboxEnvelope } from './outbox-envelope';
 
@@ -32,6 +35,7 @@ export class OutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {
     @Inject('APP_ENV') private readonly env: AppEnv,
     private readonly validator: ContractValidator,
     @Inject(RELAY_LOCK) private readonly lock: RelayLockPort,
+    private readonly metrics: MetricsService,
   ) {
     this.lockEnabled = env.OUTBOX_RELAY_LOCK_ENABLED;
     // El sufijo aleatorio distingue dos instancias que compartan host y pid
@@ -63,6 +67,7 @@ export class OutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {
 
     if (this.lockEnabled && this.holdsLease) {
       this.holdsLease = false;
+      this.metrics.outboxRelayLeaseHeld.set(0);
       await this.lock.release(LEASE_NAME, this.instanceId).catch((error: unknown) => {
         this.logger.warn(
           'No se pudo liberar el lease del relay al apagar',
@@ -91,6 +96,7 @@ export class OutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {
         return 0;
       }
 
+      this.metrics.outboxPendingEvents.set(await this.outbox.countUnpublished());
       const events = await this.outbox.listUnpublished(this.env.OUTBOX_BATCH_SIZE);
       let published = 0;
 
@@ -99,23 +105,28 @@ export class OutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {
           break;
         }
 
+        const traceparent = startTraceparent();
+        const context = logContext({ correlationId: event.correlationId, traceparent });
+
         try {
           const envelope = toOutboxEnvelope(event);
           this.validator.validateMenuItemUpdated(envelope);
-          await this.bus.publish(event.routingKey, envelope);
+          await this.bus.publish(event.routingKey, envelope, { traceparent });
           await this.outbox.markPublished(event.seq, this.clock.now());
           published += 1;
+          this.metrics.outboxRelayPublished.inc();
           this.consecutiveFailures = 0;
         } catch (error) {
           this.consecutiveFailures += 1;
+          this.metrics.outboxRelayFailures.inc();
           await this.outbox.recordFailure(event.seq, this.describe(error)).catch((recordError: unknown) => {
             this.logger.error(
-              `No se pudo registrar el fallo del evento ${event.id}`,
+              `No se pudo registrar el fallo del evento ${event.id}${context}`,
               recordError instanceof Error ? recordError.stack : String(recordError),
             );
           });
           this.logger.warn(
-            `No se pudo publicar el evento ${event.id} (seq ${event.seq}); ` +
+            `No se pudo publicar el evento ${event.id} (seq ${event.seq})${context}; ` +
               `se reintentará antes de avanzar al siguiente`,
             error instanceof Error ? error.stack : String(error),
           );
@@ -136,13 +147,16 @@ export class OutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {
     if (owned) {
       if (!this.holdsLease) {
         this.logger.log('Relay del Outbox: lease adquirido, esta instancia publica');
+        this.metrics.outboxRelayLeaseAcquisitions.inc();
       }
       this.holdsLease = true;
+      this.metrics.outboxRelayLeaseHeld.set(1);
       this.loggedLockout = false;
       return true;
     }
 
     this.holdsLease = false;
+    this.metrics.outboxRelayLeaseHeld.set(0);
     if (!this.loggedLockout) {
       this.logger.log('Relay del Outbox: otra instancia posee el lease; se omite este ciclo');
       this.loggedLockout = true;
@@ -165,6 +179,7 @@ export class OutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {
       await this.pollOnce();
     } catch (error) {
       this.consecutiveFailures += 1;
+      this.metrics.outboxRelayCycleErrors.inc();
       this.logger.error(
         'Falló el ciclo del relay del Outbox',
         error instanceof Error ? error.stack : String(error),

@@ -10,6 +10,7 @@ import { PrismaOutboxRepository } from '../../src/catalog/infrastructure/persist
 import { ContractValidator } from '../../src/events/contract-validator';
 import { OutboxRelay } from '../../src/messaging/application/outbox-relay.service';
 import { PrismaRelayLockRepository } from '../../src/messaging/infrastructure/prisma-relay-lock.repository';
+import { MetricsService } from '../../src/observability/metrics.service';
 import { runMigrations, startPostgres } from './support/containers';
 import { createPrisma, resetDatabase } from './support/db';
 
@@ -61,6 +62,7 @@ function buildRelay(
     env,
     new ContractValidator(),
     new PrismaRelayLockRepository(prisma),
+    new MetricsService(),
   );
 }
 

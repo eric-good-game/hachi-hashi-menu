@@ -12,7 +12,7 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
 
   app.use(correlationIdMiddleware);
-  app.setGlobalPrefix('api', { exclude: ['health'] });
+  app.setGlobalPrefix('api', { exclude: ['health', 'metrics'] });
 
   app.useGlobalPipes(
     new ValidationPipe({

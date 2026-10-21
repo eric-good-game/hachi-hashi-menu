@@ -23,7 +23,7 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<INest
   const app = moduleRef.createNestApplication({ logger: false });
 
   app.use(correlationIdMiddleware);
-  app.setGlobalPrefix('api', { exclude: ['health'] });
+  app.setGlobalPrefix('api', { exclude: ['health', 'metrics'] });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -58,6 +58,8 @@ alcance entregado por hito.
 | D-46 | Relay multi-instancia | Se mantiene una sola instancia del relay en el Hito 3 (coherente con D-33); no se implementa bloqueo distribuido. | El bloqueo/particionado se evaluará en el Hito 4 con carga real; documentarlo es suficiente para la etapa A. **Superado por D-48.** |
 | D-47 | Pipeline de CI | GitHub Actions (`.github/workflows/ci.yml`) con tres trabajos en cada push a `main` y pull request: **calidad** (typecheck, unitarias, build), **integración** (Testcontainers) e **imagen Docker** (solo build). Node se fija con `.nvmrc` (22) y `pnpm` con `packageManager` (`pnpm@11.25.0`); las acciones se anclan a sus versiones mayores actuales. El paso de integración pasa un glob de archivos compilados en lugar de un directorio. | El runner `node --test` de Node 22 no expande un directorio como argumento (Node 26 sí, lo que ocultó el fallo en local), así que el glob es obligatorio para que CI y local coincidan. `pnpm verify` reproduce el pipeline de calidad. |
 | D-48 | Bloqueo del relay multi-instancia | Con `OUTBOX_RELAY_LOCK_ENABLED=true` (por defecto) el relay toma un **lease en base de datos** sobre la tabla `relay_lock` mediante un único upsert atómico: se adquiere si está libre o vencido y se renueva por `OUTBOX_RELAY_LEASE_MS`. El lease se renueva antes de cada evento de un lote y se libera al apagar (`onModuleDestroy`). Instancia identificada por `OUTBOX_RELAY_INSTANCE_ID` o, por defecto, host + pid + sufijo aleatorio. | Un solo publicador conserva el orden por `seq` con varias réplicas, sin advisory locks atados a una conexión del pool ni transacciones interactivas largas. Se verificó con dos relays concurrentes sobre la misma base: con bloqueo publican cada evento una vez; sin bloqueo hay duplicados. |
+| D-49 | Métricas y correlación | `GET /metrics` (fuera del prefijo `/api`, sin autenticación y gobernado por `METRICS_ENABLED`) expone métricas Prometheus mediante `@prometheus-io/client`, el sucesor oficial de `prom-client`: eventos pendientes del Outbox, publicados y fallos del relay, lease en posesión, resultados del consumidor, reintentos, descartes, duración y profundidad de colas. El relay publica cada evento con un `traceparent` W3C nuevo y el consumidor lo continúa al reprogramar un reintento; ambos registran `correlationId`, `traceId` y `spanId` en los logs. | Sin colector de trazas todavía, la correlación viaja en los mensajes y en los logs, así que integrar OpenTelemetry después no exige tocar el dominio. La profundidad de cola se consulta de forma pasiva cada `QUEUE_METRICS_INTERVAL_MS` para no depender de un exportador del broker. |
+| D-50 | Operación de la DLQ | `scripts/replay-dlq.cjs` (`pnpm replay:dlq`) reprocesa la DLQ con `--limit`, `--dry-run` y `--keep-retry-count`; conserva el `messageId` original (idempotencia), reinicia `x-retry-count` y deduce la routing key de `x-death`. Las reglas de alerta viven en `ops/prometheus/alerts.yml` y el procedimiento en `docs/runbook-operacion.md`. | Permite recuperar mensajes descartados sin perder la garantía de no aplicar dos veces un cambio, y deja explícito qué hacer ante cada alerta. |
 
 ## Ambigüedades que siguen abiertas
 
@@ -71,6 +73,8 @@ alcance entregado por hito.
 | Relay multi-instancia | Resuelto en D-48: lease en base de datos con renovación por evento y liberación al apagar; D-46 dejó de aplicar al escalar a varias réplicas. |
 | Reintentos del consumidor | Resuelto en D-35: tres colas con TTL creciente y DLQ; no se usa el plugin de mensajes retardados. El TTL es configurable con `RABBITMQ_RETRY_TTLS_MS` (D-43). |
 | Contrato de `MenuItemUpdated` y disponibilidad | El evento no incluye `available`; la disponibilidad llega por Inventory y no incrementa `revision`. Confirmado para esta etapa. |
+| Backend de métricas y trazas | Resuelto en D-49 para el lado del servicio: métricas Prometheus y correlación por `traceparent`/logs. Falta decidir el colector y el stack de dashboards/alertas de la plataforma. |
+| Retención y reproceso de la DLQ | Resuelto en D-50: replay manual con `pnpm replay:dlq` y runbook. La automatización (reintento programado) se evaluará cuando exista la plataforma. |
 
 ## Alcance del Hito 1 (walking skeleton)
 
@@ -131,7 +135,7 @@ Diferido:
 
 - Bloqueo o particionado del relay para múltiples instancias (D-46): implementado en el Hito 4 con un lease en base de datos (D-48).
 - JWKS, validación de issuer/audience y rotación automática de claves.
-- Métricas, trazas y alertas del relay/consumidor; herramienta de replay de la DLQ.
+- Métricas, trazas y alertas del relay/consumidor; herramienta de replay de la DLQ: implementadas en el Hito 4 (D-49 y D-50).
 - CI/CD y checklist de etapa B (Hito 4) — implementados en D-47.
 - Confirmación final del contrato de Identity y del payload de Inventory.
 
@@ -145,9 +149,12 @@ Incluido:
 - Checklist de etapa B en `docs/checklist-etapa-b.md`, con lo verificable hoy y lo bloqueado por Identity/Inventory.
 - Bloqueo del relay multi-instancia con lease en base de datos (D-48), con pruebas de integración de exclusión y de publicación exactamente una vez.
 - Repositorio del servicio: `eric-good-game/hachi-hashi-menu` (público, rama `main`).
+- Métricas Prometheus en `GET /metrics` y correlación de trazas por `traceparent`/logs (D-49), con pruebas unitarias y de integración.
+- Operación de la DLQ: script `pnpm replay:dlq`, reglas de alerta en `ops/prometheus/alerts.yml` y `docs/runbook-operacion.md` (D-50).
 
 Diferido:
 
-- Métricas, trazas y alertas del relay/consumidor; herramienta de replay de la DLQ.
 - Validación de etapa B de punta a punta (requiere Identity e Inventory reales).
+- Colector de trazas: el servicio ya propaga el contexto, pero no exporta spans.
+- Automatización del reproceso de la DLQ y dashboards de la plataforma.
 

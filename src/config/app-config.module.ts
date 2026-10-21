@@ -30,6 +30,8 @@ import type { AppEnv } from './env.schema';
         DEV_TOOLS_ENABLED: config.getOrThrow('DEV_TOOLS_ENABLED'),
         SEED_ON_START: config.getOrThrow('SEED_ON_START'),
         PHOTO_STORAGE_PATH: config.getOrThrow('PHOTO_STORAGE_PATH'),
+        METRICS_ENABLED: config.getOrThrow('METRICS_ENABLED'),
+        QUEUE_METRICS_INTERVAL_MS: config.getOrThrow('QUEUE_METRICS_INTERVAL_MS'),
       }),
     },
   ],

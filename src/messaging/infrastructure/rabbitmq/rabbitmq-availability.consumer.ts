@@ -7,6 +7,9 @@ import type {
 } from '../../../catalog/application/ports/availability-inbound';
 import { AVAILABILITY_INBOUND } from '../../../catalog/catalog.tokens';
 import { ContractValidator, type AvailabilityChangedEvent } from '../../../events/contract-validator';
+import { logContext } from '../../../observability/log-context';
+import { MetricsService } from '../../../observability/metrics.service';
+import { continueTraceparent } from '../../../observability/trace-context';
 import {
   AVAILABILITY_QUEUE,
   RETRY_EXCHANGE,
@@ -28,6 +31,7 @@ export class RabbitMqAvailabilityConsumer implements OnApplicationBootstrap, OnM
     private readonly rabbit: RabbitMqService,
     @Inject(AVAILABILITY_INBOUND) private readonly applyAvailability: AvailabilityInboundPort,
     private readonly validator: ContractValidator,
+    private readonly metrics: MetricsService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -112,20 +116,25 @@ export class RabbitMqAvailabilityConsumer implements OnApplicationBootstrap, OnM
   }
 
   private async handle(channel: Channel, message: ConsumeMessage): Promise<void> {
+    const traceparent = message.properties.headers?.['traceparent'];
     let envelope: AvailabilityChangedEvent;
 
     try {
       const parsed: unknown = JSON.parse(message.content.toString('utf8'));
       envelope = this.validator.validateAvailabilityChanged(parsed);
     } catch (error) {
+      this.metrics.availabilityDeadLetters.inc({ reason: 'invalid_contract' });
       this.logger.warn(
-        `Mensaje descartado a la DLQ por contrato inválido: ${
+        `Mensaje descartado a la DLQ por contrato inválido${logContext({ traceparent })}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
       channel.nack(message, false, false);
       return;
     }
+
+    const context = logContext({ correlationId: envelope.correlationId, traceparent });
+    const startedAt = process.hrtime.bigint();
 
     try {
       const result = await this.applyAvailability.execute({
@@ -136,13 +145,16 @@ export class RabbitMqAvailabilityConsumer implements OnApplicationBootstrap, OnM
       });
 
       channel.ack(message);
-      this.logAvailabilityResult(envelope, result);
+      const durationSeconds = Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
+      this.metrics.recordAvailabilityResult(result.status, durationSeconds);
+      this.logAvailabilityResult(envelope, result, context);
     } catch (error) {
+      this.metrics.availabilityFailures.inc();
       this.logger.error(
-        `Error transitorio aplicando disponibilidad del platillo ${envelope.payload.menuItemId}`,
+        `Error transitorio aplicando disponibilidad del platillo ${envelope.payload.menuItemId}${context}`,
         error instanceof Error ? error.stack : String(error),
       );
-      await this.retryOrDeadLetter(channel, message, envelope);
+      await this.retryOrDeadLetter(channel, message, envelope, traceparent);
     }
   }
 
@@ -150,13 +162,16 @@ export class RabbitMqAvailabilityConsumer implements OnApplicationBootstrap, OnM
     channel: Channel,
     message: ConsumeMessage,
     envelope: AvailabilityChangedEvent,
+    traceparent: unknown,
   ): Promise<void> {
     const rawRetry = message.properties.headers?.['x-retry-count'];
     const retryCount = Number(rawRetry ?? 0);
+    const context = logContext({ correlationId: envelope.correlationId, traceparent });
 
     if (!Number.isFinite(retryCount) || retryCount >= this.env.CONSUMER_MAX_RETRIES) {
+      this.metrics.availabilityDeadLetters.inc({ reason: 'retries_exhausted' });
       this.logger.error(
-        `Mensaje ${envelope.messageId} agotó los reintentos; se envía a la DLQ`,
+        `Mensaje ${envelope.messageId} agotó los reintentos; se envía a la DLQ${context}`,
       );
       channel.nack(message, false, false);
       return;
@@ -167,15 +182,17 @@ export class RabbitMqAvailabilityConsumer implements OnApplicationBootstrap, OnM
     try {
       await this.rabbit.publish(RETRY_EXCHANGE, retry.routingKey, envelope, {
         ...(message.properties.headers ?? {}),
+        traceparent: continueTraceparent(traceparent),
         'x-retry-count': retryCount + 1,
       });
       channel.ack(message);
+      this.metrics.availabilityRetries.inc();
       this.logger.warn(
-        `Mensaje ${envelope.messageId} reprogramado para reintento ${retryCount + 1} en ${retry.queue}`,
+        `Mensaje ${envelope.messageId} reprogramado para reintento ${retryCount + 1} en ${retry.queue}${context}`,
       );
     } catch (error) {
       this.logger.error(
-        `No se pudo reprogramar el mensaje ${envelope.messageId}; se devuelve a la cola`,
+        `No se pudo reprogramar el mensaje ${envelope.messageId}; se devuelve a la cola${context}`,
         error instanceof Error ? error.stack : String(error),
       );
       channel.nack(message, false, true);
@@ -185,10 +202,11 @@ export class RabbitMqAvailabilityConsumer implements OnApplicationBootstrap, OnM
   private logAvailabilityResult(
     envelope: AvailabilityChangedEvent,
     result: ApplyAvailabilityChangeResult,
+    context: string,
   ): void {
     const message =
       `Disponibilidad ${envelope.payload.available ? 'disponible' : 'agotada'} ` +
-      `para ${envelope.payload.menuItemId}: ${result.status}`;
+      `para ${envelope.payload.menuItemId}: ${result.status}${context}`;
     if (result.status === 'unknown') {
       this.logger.warn(message);
     } else {
