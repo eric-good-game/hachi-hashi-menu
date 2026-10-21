@@ -1,0 +1,32 @@
+meta {
+  name: 16 Refrescar revisión del platillo
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/menu/admin/items?page=1&size=100
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Accept: application/json
+}
+
+script:post-response {
+  const items = res.body.items || [];
+  const match = items.find((item) => item.id === bru.getVar("itemId"));
+  if (match) {
+    bru.setVar("revision", match.revision);
+  }
+}
+
+docs {
+  # Refrescar la revisión
+
+  El renombre de la categoría (10) sube la `revision` de cada platillo, así que
+  las siguientes ediciones necesitan el valor actual. Este paso lo captura desde
+  el listado de administración para poder desactivar el platillo sin un 409.
+}

@@ -70,6 +70,13 @@ Los logs del relay y del consumidor incluyen
 seguir un cambio de disponibilidad de extremo a extremo, y el `traceId` para
 correlacionarlo con los spans cuando exista un colector.
 
+Verificación de humo contra el servicio levantado (ver D-51):
+
+```bash
+./scripts/smoke.sh              # API y flujos de la etapa A
+./scripts/smoke-messaging.sh    # consumidor, DLQ y replay en --dry-run
+```
+
 ## Outbox atascado
 
 Síntoma: `menu_outbox_pending_events` crece, `MenuOutboxBacklog*` o

@@ -1,0 +1,34 @@
+meta {
+  name: 19 Crear categoría auxiliar
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{baseUrl}}/api/menu/admin/categories
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Auxiliar {{suffix}}",
+    "displayOrder": 100
+  }
+}
+
+script:post-response {
+  bru.setVar("auxCategoryId", res.body.id);
+}
+
+docs {
+  # Crear categoría auxiliar
+
+  Una categoría vacía se puede borrar (204). Una categoría que tuvo platillos
+  responde 409 aunque ahora esté vacía, por eso este paso crea una nueva.
+}

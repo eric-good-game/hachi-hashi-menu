@@ -1,0 +1,29 @@
+meta {
+  name: 18 Desactivar categoría
+  type: http
+  seq: 18
+}
+
+patch {
+  url: {{baseUrl}}/api/menu/admin/categories/{{categoryId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "active": false
+  }
+}
+
+docs {
+  # Desactivar categoría
+
+  Solo funciona si la categoría no tiene platillos activos (RN-06); en caso
+  contrario responde 409. Ejecuta antes el paso 17 para desactivar el platillo.
+}

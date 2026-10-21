@@ -1,0 +1,34 @@
+meta {
+  name: 17 Desactivar platillo
+  type: http
+  seq: 17
+}
+
+patch {
+  url: {{baseUrl}}/api/menu/admin/items/{{itemId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "active": false,
+    "revision": {{revision}}
+  }
+}
+
+script:post-response {
+  bru.setVar("revision", res.body.revision);
+}
+
+docs {
+  # Desactivar platillo
+
+  Desactivar sube la `revision` y hace que el detalle público devuelva 404.
+  Ejecuta antes el paso 16 para no recibir un 409 por revisión desactualizada.
+}

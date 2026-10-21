@@ -1,0 +1,32 @@
+meta {
+  name: 21 Métricas Prometheus
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/metrics
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: text/plain
+}
+
+docs {
+  # Métricas Prometheus
+
+  Devuelve texto en formato Prometheus (D-49). Queda fuera del prefijo `/api` y
+  no requiere token; se desactiva con `METRICS_ENABLED=false` (responde 404).
+
+  Métricas útiles para inspeccionar a mano:
+
+  - `menu_outbox_pending_events`: eventos sin publicar.
+  - `menu_outbox_relay_lease_held`: `1` si esta instancia tiene el lease.
+  - `menu_availability_consumer_processed_total{status}`: resultados del consumidor.
+  - `menu_availability_consumer_dead_letters_total{reason}`: mensajes a la DLQ.
+  - `menu_availability_queue_messages{queue}`: profundidad de colas.
+
+  El procedimiento de operación está en `docs/runbook-operacion.md`.
+}

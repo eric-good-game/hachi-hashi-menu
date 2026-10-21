@@ -318,18 +318,22 @@ efímeros. Cubre:
 No requiere Inventory ni Identity: usan los contratos provisionales descritos en
 [`contracts/README.md`](contracts/README.md).
 
-Para una verificación de humo contra el servicio levantado (incluye edición, fotos,
-renombre de categoría, reglas RN-06, simulador de disponibilidad y Outbox):
+### Verificación de humo
+
+Los dos scripts comparten los helpers de `scripts/lib/smoke-common.sh`, aceptan `--help` y se
+eligen según lo que quieras comprobar:
+
+| Script | Cuándo usarlo | Requiere |
+|---|---|---|
+| `./scripts/smoke.sh` | API y flujos de la etapa A: autenticación, categorías, platillos y revisiones, fotos y ETag, simulador de disponibilidad, menú público, reglas RN-06 y Outbox. | Servicio en etapa A (`AUTH_MODE=dev`, `DEV_TOOLS_ENABLED=true`) y `docker compose` para la comprobación del Outbox. |
+| `./scripts/smoke-messaging.sh` | Consumidor RabbitMQ real: disponibilidad aplicada, idempotencia, mensajes viejos, DLQ por contrato inválido y replay en `--dry-run`. | Lo anterior con `OUTBOX_PUBLISH_ENABLED=true` y `CONSUMERS_ENABLED=true`, más `docker compose --profile messaging up -d rabbitmq`. |
 
 ```bash
-./scripts/smoke.sh
+./scripts/smoke.sh                 # no necesita RabbitMQ
+./scripts/smoke-messaging.sh       # con el broker y el consumidor activos
 ```
 
-Para verificar el consumidor RabbitMQ real, con el servicio en modo mensajería:
-
-```bash
-./scripts/smoke-messaging.sh
-```
+Ambos aceptan `BASE_URL`; el segundo también `RABBITMQ_URL`.
 
 Las pruebas unitarias usan un shim de Jest para `@nestjs/common` porque NestJS 12 publica
 ESM puro; el runtime de la aplicación no usa ese shim. Las de integración compilan a
@@ -387,6 +391,7 @@ bruno/               # colección de flujos principales
 | `pnpm dev:jwt` | Genera claves RSA y firma un JWT para `AUTH_MODE=jwt` |
 | `pnpm dev:publish-availability` | Publica `MenuItemAvailabilityChanged` (simulador de Inventory) |
 | `pnpm replay:dlq` | Reprograma mensajes de la DLQ (`--dry-run`, `--limit`) |
+| `./scripts/smoke.sh` | Humo de la API y de los flujos de la etapa A |
 | `./scripts/smoke-messaging.sh` | Humo del consumidor RabbitMQ real y la DLQ |
 | `pnpm test:integration` | Pruebas de integración con Testcontainers |
 | `pnpm db:reset` | Reinicia la base y reaplica migraciones |

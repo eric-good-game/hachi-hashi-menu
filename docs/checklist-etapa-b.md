@@ -89,7 +89,9 @@ Leyenda:
       JWT, 404 de tools). Ver `pnpm test:integration`.
 - [ ] 🔒 Pruebas de contrato contra los productores/consumidores reales de
       `event-contracts`.
-- [ ] ⏳ Prueba de humo en el entorno integrado (`scripts/smoke-messaging.sh` adaptado).
+- [ ] ⏳ Prueba de humo en el entorno integrado: `scripts/smoke.sh` y
+      `scripts/smoke-messaging.sh` ya cubren la API, el consumidor y el replay de la DLQ
+      (D-51); falta ejecutarlos con JWT real y sin herramientas `dev`.
 
 ## 8. Despliegue y rollback
 

@@ -1,0 +1,22 @@
+meta {
+  name: 20 Borrar categoría auxiliar
+  type: http
+  seq: 20
+}
+
+delete {
+  url: {{baseUrl}}/api/menu/admin/categories/{{auxCategoryId}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+}
+
+docs {
+  # Borrar categoría auxiliar
+
+  Espera 204 (sin contenido). Si la categoría tuviera platillos activos
+  respondería 409.
+}
