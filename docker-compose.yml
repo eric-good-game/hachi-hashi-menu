@@ -16,6 +16,24 @@ services:
       timeout: 3s
       retries: 20
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: hachi-menu-rabbitmq
+    profiles: ['messaging']
+    environment:
+      RABBITMQ_DEFAULT_USER: menu
+      RABBITMQ_DEFAULT_PASS: menu
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    volumes:
+      - menu-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   menu-api:
     build: .
     container_name: hachi-menu-api
@@ -47,3 +65,4 @@ services:
 volumes:
   menu-db-data:
   menu-photos:
+  menu-rabbitmq-data:

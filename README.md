@@ -3,17 +3,18 @@
 Servicio dueño del menú del restaurante: platillos, categorías, precios, alérgenos y fotos.
 Construido con NestJS, Prisma y PostgreSQL.
 
-Este repositorio contiene los **Hitos 1 y 2**: creación y edición de platillos, revisión de
-alérgenos, activación, categorías con sus reglas de estado y borrado, fotos en disco local,
-consulta pública paginada, menú público con ETag y Outbox transaccional. Las decisiones
-tomadas y el alcance diferido están en
+Este repositorio contiene los **Hitos 1, 2 y 3**: creación y edición de platillos, revisión
+de alérgenos, activación, categorías con sus reglas de estado y borrado, fotos en disco
+local, consulta pública paginada, menú público con ETag y Outbox transaccional; relay del
+Outbox a RabbitMQ, consumidor de disponibilidad, autenticación JWT y validación de contratos
+con AJV. Las decisiones tomadas y el alcance diferido están en
 [`docs/decisiones-implementacion-menu.md`](docs/decisiones-implementacion-menu.md).
 
 ## Requisitos
 
 - Node.js 22 o superior
 - pnpm 11
-- Docker (para PostgreSQL)
+- Docker (para PostgreSQL; RabbitMQ es opcional y solo se necesita para el Hito 3)
 
 ## Inicio rápido
 
@@ -23,6 +24,21 @@ docker compose up -d menu-db
 pnpm db:deploy
 pnpm start:dev
 ```
+
+Para el flujo completo de mensajería, levanta también RabbitMQ y activa el relay y el
+consumidor:
+
+```bash
+docker compose --profile messaging up -d rabbitmq
+OUTBOX_PUBLISH_ENABLED=true \
+CONSUMERS_ENABLED=true \
+RABBITMQ_URL=amqp://menu:menu@localhost:5672 \
+pnpm start:dev
+```
+
+El relay solo publica si `OUTBOX_PUBLISH_ENABLED=true`; el consumidor solo escucha si
+`CONSUMERS_ENABLED=true`. Con ambas banderas en `false` el servicio funciona en modo A y
+los eventos quedan en el Outbox sin publicarse.
 
 El servicio queda en `http://localhost:3000`, la documentación en
 `http://localhost:3000/api/docs` y la salud en `http://localhost:3000/health`.
@@ -40,7 +56,9 @@ docker compose up --build
 
 Las fotos se guardan en el volumen `menu-photos`, montado en `/app/var/photos`.
 
-## Autenticación de desarrollo
+## Autenticación
+
+### Modo desarrollo
 
 En `AUTH_MODE=dev` se usan tokens fijos:
 
@@ -55,6 +73,21 @@ curl http://localhost:3000/api/menu/admin/items \
 ```
 
 Sin token se devuelve 401. Los errores usan `application/problem+json`.
+
+### Modo JWT
+
+Con `AUTH_MODE=jwt` se valida un JWT **RS256** con `JWT_PUBLIC_KEY` o
+`JWT_PUBLIC_KEY_FILE`. El token debe incluir `sub` y roles en el claim `roles` (o, como
+alternativa, en `realm_access.roles`). La administración exige el rol `admin`.
+
+```bash
+AUTH_MODE=jwt \
+JWT_PUBLIC_KEY_FILE=/ruta/a/public.pem \
+pnpm start:dev
+```
+
+La clave pública se carga al arrancar y se usa para validar cada token. No se consulta JWKS en esta etapa; Identity debe
+entregar la clave por configuración o archivo.
 
 ## Endpoints
 
@@ -90,6 +123,16 @@ categorías activas.
 | PATCH | `/api/menu/admin/items/{id}/status` | Activa o desactiva con `revision` |
 | PUT | `/api/menu/admin/items/{id}/photo` | Sube o reemplaza la foto (`multipart/form-data`, campo `file`) |
 | DELETE | `/api/menu/admin/items/{id}/photo` | Quita la foto |
+
+### Simulador de Inventory (solo etapa A)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| PUT | `/api/menu/dev/items/{id}/availability` | Simula `MenuItemAvailabilityChanged`; exige `admin` |
+
+El simulador solo existe si `DEV_TOOLS_ENABLED=true`. En modo integrado la ruta responde
+404. Acepta `available` y, opcionalmente, `occurredAt` (ISO-8601). Devuelve `applied`,
+`duplicate` o `stale`; la disponibilidad no sube `revision` ni publica eventos.
 
 Reglas principales de la etapa:
 
@@ -153,20 +196,64 @@ docker compose exec menu-db psql -U menu -d menu \
   -c "select seq, type, payload->>'revision' as revision, payload->>'active' as active, published_at from outbox_event order by seq;"
 ```
 
+## Mensajería (Hito 3)
+
+Menu publica `MenuItemUpdated` en el exchange `hachi.events` con routing key
+`menu.menu-item-updated`. El relay lee el Outbox en orden de `seq`, valida el contrato con
+AJV, publica con confirmación del broker y marca `published_at`; si falla, registra
+`attempts`/`last_error` y reintenta con espera creciente sin avanzar al siguiente evento.
+La entrega es **at-least-once** y los consumidores son idempotentes.
+
+Topología de consumo:
+
+| Elemento | Nombre |
+|---|---|
+| Exchange de eventos | `hachi.events` (topic) |
+| Exchange de descarte | `hachi.dlx` (direct) |
+| Cola de disponibilidad | `menu.inventory-events` |
+| Routing key consumida | `inventory.menu-item-availability-changed` |
+| Colas de reintento | `menu.inventory-events.retry.{1,2,3}` (TTL 5 s, 15 s, 45 s) |
+| Exchange de reintento | `hachi.retry` (direct) |
+| Cola de mensajes agotados | `menu.inventory-events.dlq` |
+
+El consumidor valida el sobre y el payload. Un contrato inválido va directo a la DLQ. Un
+platillo desconocido se registra y se confirma; una disponibilidad con `occurredAt` menor o
+igual a `available_updated_at` se descarta como vieja. Los errores transitorios se
+reprograman en la cola de reintento correspondiente; después de `CONSUMER_MAX_RETRIES`
+intentos el mensaje va a la DLQ. La actualización de disponibilidad y el registro en
+`processed_message` ocurren en la misma transacción.
+
+Inspección local:
+
+```bash
+docker compose exec rabbitmq rabbitmqctl list_queues name messages
+```
+
+El simulador de Inventory permite probar el flujo sin publicar a RabbitMQ:
+
+```bash
+curl -s -X PUT "$BASE/dev/items/$ITEM_ID/availability" \
+  -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"available":false}'
+```
+
 ## Pruebas
 
 ```bash
-pnpm test        # unitarias: dominio, semilla, contrato del evento y configuración
+pnpm test        # 52 unitarias: dominio, semilla, contratos, relay, consumidor y JWT
 pnpm typecheck   # TypeScript estricto
 pnpm build       # Compilación
 ```
 
 Para una verificación de humo contra el servicio levantado (incluye edición, fotos,
-renombre de categoría, reglas RN-06 y Outbox):
+renombre de categoría, reglas RN-06, simulador de disponibilidad y Outbox):
 
 ```bash
 ./scripts/smoke.sh
 ```
+
+Las pruebas unitarias usan un shim de Jest para `@nestjs/common` porque NestJS 12 publica
+ESM puro; el runtime de la aplicación no usa ese shim.
 
 ## Estructura
 
@@ -177,9 +264,10 @@ src/
     application/     # puertos, casos de uso y vistas públicas
     infrastructure/  # Prisma, Outbox, reloj, IDs, correlación y fotos
     api/             # controllers, DTOs y mappers
-  common/            # problem+json, auth dev, ETag y correlation-id
+  common/            # problem+json, auth dev/JWT, ETag y correlation-id
   config/            # esquema de entorno y protecciones de arranque
-  events/            # contrato y constructor de MenuItemUpdated
+  events/            # contrato, constructor y validador AJV
+  messaging/         # relay del Outbox y adaptadores RabbitMQ
   seed/              # semilla idempotente y exportación de IDs
 contracts/           # esquemas de eventos y IDs semilla
 docs/                # diseño y decisiones de implementación
@@ -197,3 +285,4 @@ bruno/               # colección de flujos principales
 | `pnpm seed` | Ejecuta la semilla manualmente |
 | `pnpm seed:ids` | Regenera `contracts/seed/menu-item-ids.json` |
 | `pnpm db:reset` | Reinicia la base y reaplica migraciones |
+| `docker compose --profile messaging up -d rabbitmq` | Levanta RabbitMQ para el Hito 3 |

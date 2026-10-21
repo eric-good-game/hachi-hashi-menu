@@ -1,0 +1,23 @@
+meta {
+  name: 15 Simular disponibilidad
+  type: http
+  seq: 15
+}
+
+put {
+  url: {{baseUrl}}/api/menu/dev/items/{{itemId}}/availability
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "available": false,
+    "occurredAt": "2030-01-01T00:00:00.000Z"
+  }
+}

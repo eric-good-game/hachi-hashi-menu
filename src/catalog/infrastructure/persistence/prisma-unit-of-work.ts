@@ -4,6 +4,7 @@ import { PrismaAllergenRepository } from './prisma-allergen.repository';
 import { PrismaCategoryRepository } from './prisma-category.repository';
 import { PrismaMenuItemRepository } from './prisma-menu-item.repository';
 import { PrismaOutboxRepository } from './prisma-outbox.repository';
+import { PrismaProcessedMessageRepository } from './prisma-processed-message.repository';
 import { PrismaService } from './prisma.service';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class PrismaUnitOfWork implements UnitOfWork {
           items: new PrismaMenuItemRepository(tx),
           allergens: new PrismaAllergenRepository(tx),
           outbox: new PrismaOutboxRepository(tx),
+          processedMessages: new PrismaProcessedMessageRepository(tx),
         }),
       { timeout: 15_000 },
     );

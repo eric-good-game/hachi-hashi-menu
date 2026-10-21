@@ -242,6 +242,17 @@ export class MenuItem {
     return this.next({ photoPath, updatedAt: now, updatedBy: actorId });
   }
 
+  isAvailabilityStale(occurredAt: Date): boolean {
+    return this.props.availableUpdatedAt !== null && occurredAt.getTime() <= this.props.availableUpdatedAt.getTime();
+  }
+
+  applyAvailability(available: boolean, occurredAt: Date): MenuItem {
+    if (this.isAvailabilityStale(occurredAt)) {
+      return this;
+    }
+    return this.next({ available, availableUpdatedAt: occurredAt });
+  }
+
   bumpRevision(now: Date, actorId: string | null): MenuItem {
     return this.next({ revision: this.props.revision + 1, updatedAt: now, updatedBy: actorId });
   }

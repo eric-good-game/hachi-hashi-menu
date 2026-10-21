@@ -50,16 +50,8 @@ export const envSchema = z
     if ((env.OUTBOX_PUBLISH_ENABLED || env.CONSUMERS_ENABLED) && !env.RABBITMQ_URL) {
       fail('RABBITMQ_URL', 'El relay o los consumidores requieren RABBITMQ_URL');
     }
-
-    // Funcionalidad de hitos posteriores: fallar rápido en vez de ignorar la bandera.
-    if (env.AUTH_MODE === 'jwt') {
-      fail('AUTH_MODE', 'AUTH_MODE=jwt se implementa en el Hito 3');
-    }
-    if (env.OUTBOX_PUBLISH_ENABLED) {
-      fail('OUTBOX_PUBLISH_ENABLED', 'El relay del Outbox se implementa en el Hito 3');
-    }
-    if (env.CONSUMERS_ENABLED) {
-      fail('CONSUMERS_ENABLED', 'El consumidor de disponibilidad se implementa en el Hito 3');
+    if (env.AUTH_MODE === 'jwt' && !env.JWT_PUBLIC_KEY && !env.JWT_PUBLIC_KEY_FILE) {
+      fail('JWT_PUBLIC_KEY', 'AUTH_MODE=jwt exige JWT_PUBLIC_KEY o JWT_PUBLIC_KEY_FILE');
     }
   });
 

@@ -17,6 +17,7 @@ ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
+COPY contracts ./contracts
 COPY --from=build /app/package.json ./package.json
 EXPOSE 3000
 CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/main.js"]

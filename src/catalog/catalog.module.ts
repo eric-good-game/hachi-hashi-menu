@@ -1,6 +1,13 @@
 import { Module } from '@nestjs/common';
+import { AuthGuard } from '../common/auth/auth.guard';
+import { ConfigKeyProvider } from '../common/auth/config-key-provider';
 import { DevAuthGuard } from '../common/auth/dev-auth.guard';
+import { DevToolsGuard } from '../common/auth/dev-tools.guard';
+import { JwtAuthGuard } from '../common/auth/jwt-auth.guard';
+import { JWT_KEY_PROVIDER } from '../common/auth/jwt-key-provider';
 import { RolesGuard } from '../common/auth/roles.guard';
+import { ApplyAvailabilityChangeUseCase } from './application/use-cases/apply-availability-change.use-case';
+import { AVAILABILITY_INBOUND } from './catalog.tokens';
 import { ChangeCategoryStatusUseCase } from './application/use-cases/change-category-status.use-case';
 import { ChangeItemStatusUseCase } from './application/use-cases/change-item-status.use-case';
 import { CreateCategoryUseCase } from './application/use-cases/create-category.use-case';
@@ -23,12 +30,13 @@ import { UpdateMenuItemUseCase } from './application/use-cases/update-menu-item.
 import { UploadItemPhotoUseCase } from './application/use-cases/upload-item-photo.use-case';
 import { PersistenceModule } from './infrastructure/persistence/persistence.module';
 import { AdminMenuController } from './api/admin-menu.controller';
+import { DevAvailabilityController } from './api/dev-availability.controller';
 import { MediaController } from './api/media.controller';
 import { PublicMenuController } from './api/public-menu.controller';
 
 @Module({
   imports: [PersistenceModule],
-  controllers: [PublicMenuController, MediaController, AdminMenuController],
+  controllers: [PublicMenuController, MediaController, AdminMenuController, DevAvailabilityController],
   providers: [
     CreateCategoryUseCase,
     UpdateCategoryUseCase,
@@ -48,8 +56,21 @@ import { PublicMenuController } from './api/public-menu.controller';
     ListAdminItemsUseCase,
     ListPublicItemsUseCase,
     GetPublicItemUseCase,
+    ApplyAvailabilityChangeUseCase,
+    {
+      provide: AVAILABILITY_INBOUND,
+      useExisting: ApplyAvailabilityChangeUseCase,
+    },
     DevAuthGuard,
+    AuthGuard,
+    JwtAuthGuard,
+    DevToolsGuard,
     RolesGuard,
+    {
+      provide: JWT_KEY_PROVIDER,
+      useClass: ConfigKeyProvider,
+    },
   ],
+  exports: [ApplyAvailabilityChangeUseCase, AVAILABILITY_INBOUND],
 })
 export class CatalogModule {}

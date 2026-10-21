@@ -15,11 +15,12 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
-} from '@nestjs/common';import { FileInterceptor } from '@nestjs/platform-express';
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { AppEnv } from '../../config/env.schema';
 import { CurrentUser } from '../../common/auth/current-user.decorator';
-import { DevAuthGuard } from '../../common/auth/dev-auth.guard';
+import { AuthGuard } from '../../common/auth/auth.guard';
 import { Roles, RolesGuard } from '../../common/auth/roles.guard';
 import type { AuthenticatedUser } from '../../common/auth/auth.types';
 import { ChangeCategoryStatusUseCase } from '../application/use-cases/change-category-status.use-case';
@@ -48,7 +49,7 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 @ApiTags('admin')
 @ApiBearerAuth()
 @Controller('menu/admin')
-@UseGuards(DevAuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 @Roles('admin')
 export class AdminMenuController {
   constructor(

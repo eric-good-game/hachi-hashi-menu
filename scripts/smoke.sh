@@ -105,6 +105,32 @@ status=$(curl -s -o /dev/null -w '%{http_code}' -X PUT "$API/admin/items/$item_i
   -d '{"revision":2,"priceCents":15000}')
 expect_status 409 "$status" "edición con revisión desactualizada"
 
+echo "== Simulador de disponibilidad (Hito 3) =="
+availability=$(curl -s -X PUT "$API/dev/items/$item_id/availability" \
+  -H "$AUTH_HEADER" -H 'Content-Type: application/json' \
+  -d '{"available":false,"occurredAt":"2030-01-01T00:00:00.000Z"}')
+expect_json "$(echo "$availability" | jq -r '.status')" "applied" "disponibilidad aplicada"
+expect_json "$(echo "$availability" | jq -r '.available')" "false" "platillo marcado agotado"
+
+detail=$(curl -s "$API/items/$item_id")
+expect_json "$(echo "$detail" | jq -r '.available')" "false" "el detalle público refleja agotado"
+admin_revision=$(curl -s "$API/admin/items?size=100" -H "$AUTH_HEADER" | jq -r --arg id "$item_id" '.items[] | select(.id == $id) | .revision')
+expect_json "$admin_revision" "3" "la disponibilidad no sube la revisión"
+
+stale=$(curl -s -X PUT "$API/dev/items/$item_id/availability" \
+  -H "$AUTH_HEADER" -H 'Content-Type: application/json' \
+  -d '{"available":true,"occurredAt":"2029-01-01T00:00:00.000Z"}')
+expect_json "$(echo "$stale" | jq -r '.status')" "stale" "disponibilidad vieja descartada"
+detail=$(curl -s "$API/items/$item_id")
+expect_json "$(echo "$detail" | jq -r '.available')" "false" "la disponibilidad vieja no cambia el estado"
+
+applied=$(curl -s -X PUT "$API/dev/items/$item_id/availability" \
+  -H "$AUTH_HEADER" -H 'Content-Type: application/json' \
+  -d '{"available":true,"occurredAt":"2031-01-01T00:00:00.000Z"}')
+expect_json "$(echo "$applied" | jq -r '.status')" "applied" "disponibilidad más nueva aplicada"
+detail=$(curl -s "$API/items/$item_id")
+expect_json "$(echo "$detail" | jq -r '.available')" "true" "el detalle público vuelve a disponible"
+
 echo "== Consultas públicas de platillos =="
 listed=$(curl -s --get --data-urlencode "q=$ITEM_NAME" --data-urlencode "size=10" "$API/items")
 expect_json "$(echo "$listed" | jq '.items | length')" "1" "listado público encuentra el platillo"

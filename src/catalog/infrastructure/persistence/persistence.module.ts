@@ -6,12 +6,14 @@ import {
   CORRELATION_CONTEXT,
   ID_GENERATOR,
   MENU_ITEM_REPOSITORY,
+  OUTBOX_REPOSITORY,
   PHOTO_STORAGE,
   UNIT_OF_WORK,
 } from '../../catalog.tokens';
 import { PrismaAllergenRepository } from './prisma-allergen.repository';
 import { PrismaCategoryRepository } from './prisma-category.repository';
 import { PrismaMenuItemRepository } from './prisma-menu-item.repository';
+import { PrismaOutboxRepository } from './prisma-outbox.repository';
 import { PrismaService } from './prisma.service';
 import { PrismaUnitOfWork } from './prisma-unit-of-work';
 import { SystemClock } from '../system/system-clock';
@@ -37,6 +39,11 @@ import { LocalDiskPhotoStorage } from '../storage/local-disk-photo-storage';
       inject: [PrismaService],
       useFactory: (prisma: PrismaService) => new PrismaAllergenRepository(prisma),
     },
+    {
+      provide: OUTBOX_REPOSITORY,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => new PrismaOutboxRepository(prisma),
+    },
     { provide: UNIT_OF_WORK, useClass: PrismaUnitOfWork },
     { provide: CLOCK, useClass: SystemClock },
     { provide: ID_GENERATOR, useClass: CryptoIdGenerator },
@@ -48,6 +55,7 @@ import { LocalDiskPhotoStorage } from '../storage/local-disk-photo-storage';
     CATEGORY_REPOSITORY,
     MENU_ITEM_REPOSITORY,
     ALLERGEN_REPOSITORY,
+    OUTBOX_REPOSITORY,
     UNIT_OF_WORK,
     CLOCK,
     ID_GENERATOR,

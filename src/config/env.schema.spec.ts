@@ -58,4 +58,36 @@ describe('envSchema', () => {
     expect(result.success).toBe(false);
     expect(result.error?.issues.some((issue) => issue.path.join('.') === 'RABBITMQ_URL')).toBe(true);
   });
+
+  it('acepta relay y consumidores con RABBITMQ_URL', () => {
+    const env = envSchema.parse({
+      ...base,
+      OUTBOX_PUBLISH_ENABLED: 'true',
+      CONSUMERS_ENABLED: 'true',
+      RABBITMQ_URL: 'amqp://menu:menu@localhost:5672',
+    });
+
+    expect(env.OUTBOX_PUBLISH_ENABLED).toBe(true);
+    expect(env.CONSUMERS_ENABLED).toBe(true);
+  });
+
+  it('exige una clave pública cuando AUTH_MODE=jwt', () => {
+    const result = envSchema.safeParse({
+      ...base,
+      AUTH_MODE: 'jwt',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.some((issue) => issue.path.join('.') === 'JWT_PUBLIC_KEY')).toBe(true);
+  });
+
+  it('acepta JWT con clave pública en configuración', () => {
+    const env = envSchema.parse({
+      ...base,
+      AUTH_MODE: 'jwt',
+      JWT_PUBLIC_KEY: '-----BEGIN PUBLIC KEY-----\\ntest\\n-----END PUBLIC KEY-----',
+    });
+
+    expect(env.AUTH_MODE).toBe('jwt');
+  });
 });

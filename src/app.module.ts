@@ -4,6 +4,7 @@ import { validateEnv } from './config/env.schema';
 import { AppConfigModule } from './config/app-config.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { HealthModule } from './health/health.module';
+import { MessagingModule } from './messaging/messaging.module';
 import { SeedModule } from './seed/seed.module';
 
 @Module({
@@ -16,6 +17,7 @@ import { SeedModule } from './seed/seed.module';
     }),
     AppConfigModule,
     CatalogModule,
+    MessagingModule,
     HealthModule,
     SeedModule,
   ],

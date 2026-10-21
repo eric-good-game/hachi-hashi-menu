@@ -7,3 +7,5 @@ export const CLOCK = Symbol('CLOCK');
 export const ID_GENERATOR = Symbol('ID_GENERATOR');
 export const CORRELATION_CONTEXT = Symbol('CORRELATION_CONTEXT');
 export const PHOTO_STORAGE = Symbol('PHOTO_STORAGE');
+export const EVENT_BUS = Symbol('EVENT_BUS');
+export const AVAILABILITY_INBOUND = Symbol('AVAILABILITY_INBOUND');

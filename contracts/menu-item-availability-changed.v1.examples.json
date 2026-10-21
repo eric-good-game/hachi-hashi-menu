@@ -1,0 +1,15 @@
+[
+  {
+    "messageId": "d6a0b6e4-6d3b-4b8e-9d6f-1a2b3c4d5e6f",
+    "type": "MenuItemAvailabilityChanged",
+    "version": 1,
+    "occurredAt": "2026-10-20T19:10:00Z",
+    "source": "inventory",
+    "correlationId": "0b6f2a9e-41c5-4c0e-8f3a-2d7e9b1a5c33",
+    "causationId": null,
+    "payload": {
+      "menuItemId": "3f9a6d2e-8c14-4b7a-a5e0-91d2c7b84f10",
+      "available": false
+    }
+  }
+]

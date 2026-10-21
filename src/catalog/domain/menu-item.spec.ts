@@ -3,6 +3,7 @@ import { BusinessRuleError, ConflictError, ValidationError } from './errors';
 import { MenuItem } from './menu-item';
 
 const NOW = new Date('2026-10-20T18:42:10.000Z');
+const LATER = new Date('2026-10-20T18:45:00.000Z');
 
 function category(overrides: Partial<CategoryProps> = {}): Category {
   return Category.rehydrate({
@@ -154,5 +155,21 @@ describe('MenuItem (RN-01, RN-02, RN-03, RN-05, RN-07, RN-08)', () => {
     const withPhoto = draft().withPhoto('foto.png', NOW, 'actor');
     expect(withPhoto.photoPath).toBe('foto.png');
     expect(withPhoto.revision).toBe(1);
+  });
+
+  it('aplica disponibilidad sin subir la revisión (RN-09)', () => {
+    const applied = draft().applyAvailability(false, LATER);
+
+    expect(applied.available).toBe(false);
+    expect(applied.availableUpdatedAt).toEqual(LATER);
+    expect(applied.revision).toBe(1);
+  });
+
+  it('descarta disponibilidad con occurredAt anterior o igual (RN-09)', () => {
+    const applied = draft().applyAvailability(false, LATER);
+
+    expect(applied.applyAvailability(true, LATER)).toBe(applied);
+    expect(applied.applyAvailability(true, new Date(LATER.getTime() - 1))).toBe(applied);
+    expect(applied.applyAvailability(true, new Date(LATER.getTime() + 1)).available).toBe(true);
   });
 });

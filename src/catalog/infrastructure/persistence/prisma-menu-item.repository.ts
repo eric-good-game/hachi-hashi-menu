@@ -150,6 +150,17 @@ export class PrismaMenuItemRepository implements MenuItemRepository {
     });
   }
 
+  async updateAvailability(itemId: string, available: boolean, occurredAt: Date): Promise<boolean> {
+    const result = await this.db.menuItem.updateMany({
+      where: {
+        id: itemId,
+        OR: [{ availableUpdatedAt: null }, { availableUpdatedAt: { lt: occurredAt } }],
+      },
+      data: { available, availableUpdatedAt: occurredAt },
+    });
+    return result.count > 0;
+  }
+
   async listAdmin(page: number, size: number): Promise<{ items: AdminMenuItemView[]; total: number }> {
     const [rows, total] = await Promise.all([
       this.db.menuItem.findMany({

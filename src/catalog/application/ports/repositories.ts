@@ -51,6 +51,7 @@ export interface MenuItemRepository {
   updateDetails(item: MenuItem): Promise<void>;
   updatePhoto(itemId: string, photoPath: string | null, actorId: string | null, now: Date): Promise<void>;
   replaceAllergens(itemId: string, codes: readonly string[], actorId: string | null, now: Date): Promise<void>;
+  updateAvailability(itemId: string, available: boolean, occurredAt: Date): Promise<boolean>;
   listByCategoryId(categoryId: string): Promise<MenuItem[]>;
   countByCategory(categoryId: string): Promise<number>;
   countActiveByCategory(categoryId: string): Promise<number>;
@@ -76,8 +77,22 @@ export interface NewOutboxEvent {
   occurredAt: Date;
 }
 
+export interface OutboxRecord extends NewOutboxEvent {
+  seq: bigint;
+  attempts: number;
+  lastError: string | null;
+}
+
 export interface OutboxRepository {
   append(event: NewOutboxEvent): Promise<void>;
+  listUnpublished(limit: number): Promise<OutboxRecord[]>;
+  markPublished(seq: bigint, publishedAt: Date): Promise<void>;
+  recordFailure(seq: bigint, error: string): Promise<void>;
+}
+
+export interface ProcessedMessageRepository {
+  exists(messageId: string): Promise<boolean>;
+  markProcessed(messageId: string, consumer: string, processedAt: Date): Promise<void>;
 }
 
 export interface TransactionRepositories {
@@ -85,6 +100,7 @@ export interface TransactionRepositories {
   items: MenuItemRepository;
   allergens: AllergenRepository;
   outbox: OutboxRepository;
+  processedMessages: ProcessedMessageRepository;
 }
 
 export interface UnitOfWork {

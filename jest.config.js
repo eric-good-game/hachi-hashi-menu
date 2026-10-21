@@ -9,6 +9,7 @@ module.exports = {
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
   moduleNameMapper: {
+    '^@nestjs/common$': '<rootDir>/test-stubs/nestjs-common.ts',
     '^src/(.*)$': '<rootDir>/$1',
   },
 };
