@@ -56,6 +56,7 @@ alcance entregado por hito.
 | D-44 | Simuladores de desarrollo | `scripts/dev-inventory-publisher.cjs` publica `MenuItemAvailabilityChanged` al exchange real y `scripts/dev-jwt.cjs` genera claves RSA y firma un JWT RS256. | Cierran la brecha de pruebas del Hito 3 sin depender de Inventory ni Identity; no sustituyen a los servicios reales. |
 | D-45 | Pruebas de integración | Se usa Testcontainers con PostgreSQL 16 y RabbitMQ 3.13, migraciones Prisma reales y el runner nativo de Node (`node:test`). `pnpm test:integration` compila con `tsconfig.integration.json` y ejecuta en serie. | Evita el problema de Jest con el ESM de NestJS 12 y cubre relay, consumidor, idempotencia, `occurredAt` viejo, DLQ, reintentos y JWT contra infraestructura real. |
 | D-46 | Relay multi-instancia | Se mantiene una sola instancia del relay en el Hito 3 (coherente con D-33); no se implementa bloqueo distribuido. | El bloqueo/particionado se evaluará en el Hito 4 con carga real; documentarlo es suficiente para la etapa A. |
+| D-47 | Pipeline de CI | GitHub Actions (`.github/workflows/ci.yml`) con tres trabajos en cada push a `main` y pull request: **calidad** (typecheck, unitarias, build), **integración** (Testcontainers) e **imagen Docker** (solo build). Node se fija con `.nvmrc` (22) y `pnpm` con `packageManager` (`pnpm@11.25.0`); las acciones se anclan a sus versiones mayores actuales. El paso de integración pasa un glob de archivos compilados en lugar de un directorio. | El runner `node --test` de Node 22 no expande un directorio como argumento (Node 26 sí, lo que ocultó el fallo en local), así que el glob es obligatorio para que CI y local coincidan. `pnpm verify` reproduce el pipeline de calidad. |
 
 ## Ambigüedades que siguen abiertas
 
@@ -88,7 +89,7 @@ Diferido a hitos posteriores:
 
 - Hito 2: completado; incluye edición de platillo, estado y borrado de categoría, fotos, reglas RN-04/RN-10/RN-11, semilla de 30 platillos y publicación de sus IDs.
 - Hito 3: completado; incluye relay del Outbox, RabbitMQ, consumidor de disponibilidad, JWT real y contratos validados con AJV.
-- Hito 4: CI/CD y checklist de etapa B (las pruebas de integración con Testcontainers se adelantaron al cierre del Hito 3, D-45).
+- Hito 4: en curso; CI/CD y checklist de etapa B ya implementados (D-47), quedan el bloqueo del relay (D-46) y la validación real de etapa B con Identity/Inventory.
 
 ## Alcance del Hito 2
 
@@ -105,7 +106,7 @@ Incluido:
 Diferido:
 
 - Hito 3: completado; incluye relay del Outbox, RabbitMQ, consumidor de disponibilidad, JWT real y validación de contratos con AJV.
-- Hito 4: CI/CD y checklist de etapa B (las pruebas de integración con Testcontainers se adelantaron al cierre del Hito 3, D-45).
+- Hito 4: en curso; CI/CD y checklist de etapa B ya implementados (D-47), quedan el bloqueo del relay (D-46) y la validación real de etapa B con Identity/Inventory.
 - Optimización de listados con proyecciones SQL específicas si el volumen lo exige.
 - Limpieza automática de fotos huérfanas (hoy solo se borra la anterior después del commit).
 
@@ -130,5 +131,22 @@ Diferido:
 - Bloqueo o particionado del relay para múltiples instancias (D-46).
 - JWKS, validación de issuer/audience y rotación automática de claves.
 - Métricas, trazas y alertas del relay/consumidor; herramienta de replay de la DLQ.
-- CI/CD y checklist de etapa B (Hito 4).
+- CI/CD y checklist de etapa B (Hito 4) — implementados en D-47.
 - Confirmación final del contrato de Identity y del payload de Inventory.
+
+## Alcance del Hito 4
+
+Incluido:
+
+- Pipeline de CI en GitHub Actions (`.github/workflows/ci.yml`): calidad, integración con Testcontainers e imagen Docker (D-47).
+- Fijado de versiones: `.nvmrc` (Node 22) y `packageManager` (`pnpm@11.25.0`).
+- `pnpm verify` para reproducir el pipeline de calidad en local.
+- Checklist de etapa B en `docs/checklist-etapa-b.md`, con lo verificable hoy y lo bloqueado por Identity/Inventory.
+- Repositorio del servicio: `eric-good-game/hachi-hashi-menu` (público, rama `main`).
+
+Diferido:
+
+- Bloqueo o particionado del relay para múltiples instancias (D-46).
+- Métricas, trazas y alertas del relay/consumidor; herramienta de replay de la DLQ.
+- Validación de etapa B de punta a punta (requiere Identity e Inventory reales).
+
