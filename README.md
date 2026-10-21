@@ -286,7 +286,7 @@ Para verificar el consumidor RabbitMQ real, con el servicio en modo mensajería:
 
 Las pruebas unitarias usan un shim de Jest para `@nestjs/common` porque NestJS 12 publica
 ESM puro; el runtime de la aplicación no usa ese shim. Las de integración compilan a
-CommonJS y aprovechan que Node 24+ puede requerir ESM nativamente.
+CommonJS y aprovechan que Node 22.12+ puede requerir ESM nativamente.
 
 ### Integración continua
 

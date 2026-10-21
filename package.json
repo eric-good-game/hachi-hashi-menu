@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:integration": "tsc -p tsconfig.integration.json && node --test --test-concurrency=1 --test-timeout=120000 dist-integration/test/integration",
+    "test:integration": "tsc -p tsconfig.integration.json && node --test --test-concurrency=1 --test-timeout=120000 \"dist-integration/test/integration/**/*.test.js\"",
     "verify": "pnpm prisma generate && pnpm typecheck && pnpm test && pnpm build",
     "dev:jwt": "node scripts/dev-jwt.cjs",
     "dev:publish-availability": "node scripts/dev-inventory-publisher.cjs"
